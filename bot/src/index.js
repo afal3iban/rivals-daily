@@ -162,6 +162,7 @@ export const COMMANDS = [
   { name: 'guess', type: 1, description: `Guess this round's hero (you get ${MAX_GUESSES} guesses)`,
     options: [{ type: 3, name: 'hero', description: 'Hero name', required: true, autocomplete: true }] },
   { name: 'leaderboard', type: 1, description: 'Top Rivals Guess players in this server' },
+  { name: 'endgame', type: 1, description: 'End the current round and reveal the hero' },
 ];
 
 async function cmdRivals(i, env) {
@@ -199,7 +200,7 @@ async function playGuess(i, env, ctx, heroName) {
   const heroes = await getHeroes(env);
   const channel = i.channel_id || (i.channel && i.channel.id), guild = i.guild_id || 'dm', uid = userId(i), name = userName(i);
   const round = await env.DB.prepare('SELECT * FROM rounds WHERE channel_id=?').bind(channel).first();
-  if (!round) return ephemeral({ content: 'No round running in this channel yet — start one with `/rivals`.' });
+  if (!round || !round.hero) return ephemeral({ content: 'No round running in this channel — start one with `/rivals`.' });
   const answer = findHero(heroes, round.hero);
   const hero = findHero(heroes, heroName);
   if (!hero) return ephemeral({ content: `I don't know a hero called **${heroName || '?'}**. Pick one from the list as you type.` });
@@ -250,6 +251,33 @@ async function playGuess(i, env, ctx, heroName) {
   return ephemeral(out);
 }
 
+// Ends the round for everyone: reveals the hero and how everybody did. Unfinished players aren't penalised.
+async function cmdEndGame(i, env) {
+  const channel = i.channel_id || (i.channel && i.channel.id);
+  const round = await env.DB.prepare('SELECT * FROM rounds WHERE channel_id=?').bind(channel).first();
+  if (!round || !round.hero) return ephemeral({ content: 'There is no round running in this channel. Start one with `/rivals`.' });
+  const { results } = await env.DB.prepare('SELECT * FROM attempts WHERE round_id=?').bind(round.round_id).all();
+  const nameOf = id => `<@${id}>`;   // shows as the player's name; allowed_mentions below stops it pinging
+  const count = a => { try { return JSON.parse(a.guesses || '[]').length; } catch (e) { return 0; } };
+  const rows = (results || []);
+  const won = rows.filter(a => a.won).sort((a, b) => count(a) - count(b));
+  const lost = rows.filter(a => a.done && !a.won);
+  const open = rows.filter(a => !a.done);
+  const lines = [
+    ...won.map((a, k) => `${['🥇', '🥈', '🥉'][k] || '🏆'} ${nameOf(a.user_id)} — ${count(a)}/${MAX_GUESSES}`),
+    ...lost.map(a => `💀 ${nameOf(a.user_id)} — out of guesses`),
+    ...open.map(a => `⏳ ${nameOf(a.user_id)} — stopped at ${count(a)}/${MAX_GUESSES}`),
+  ];
+  // clear the hero (keeps the recent-heroes list so the next round still avoids repeats)
+  await env.DB.prepare("UPDATE rounds SET hero='' WHERE channel_id=? AND round_id=?").bind(channel, round.round_id).run();
+  return reply({ embeds: [{
+    color: COLOR.lose, title: `🏁 Round over — the hero was ${round.hero}!`,
+    thumbnail: { url: portraitUrl(round.hero) },
+    description: (lines.length ? lines.join('\n') : 'Nobody guessed this round.') + '\n\nStart a new round with `/rivals`.',
+    footer: { text: `Ended by ${userName(i)}` },
+  }], allowed_mentions: { parse: [] } });
+}
+
 async function cmdLeaderboard(i, env) {
   const guild = i.guild_id || 'dm';
   const { results } = await env.DB.prepare(`SELECT * FROM scores WHERE guild_id=? AND played>0
@@ -285,7 +313,7 @@ async function register(env) {
   });
   const text = await r.text();
   if (!r.ok) return new Response(`Discord refused the commands (${r.status}):\n${text}`, { status: 502 });
-  return new Response(`Registered ${JSON.parse(text).length} commands: /rivals, /guess, /leaderboard. Database ready.`, { status: 200 });
+  return new Response(`Registered ${JSON.parse(text).length} commands: ${COMMANDS.map(c => '/' + c.name).join(', ')}. Database ready.`, { status: 200 });
 }
 
 export default {
@@ -311,6 +339,7 @@ export default {
         if (i.data.name === 'rivals') return await cmdRivals(i, env);
         if (i.data.name === 'guess') return await cmdGuess(i, env, ctx);
         if (i.data.name === 'leaderboard') return await cmdLeaderboard(i, env);
+        if (i.data.name === 'endgame') return await cmdEndGame(i, env);
       }
       return ephemeral({ content: 'Unknown command.' });
     } catch (e) {
