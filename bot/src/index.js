@@ -291,11 +291,29 @@ async function playGuess(i, env, ctx, heroName) {
   return ephemeral(out);
 }
 
-// Ends the round for everyone: reveals the hero and how everybody did. Unfinished players aren't penalised.
-async function cmdEndGame(i, env, ctx) {
+// /endgame first asks (privately) for confirmation; nothing happens until "End round" is pressed.
+async function cmdEndGame(i, env) {
   const channel = i.channel_id || (i.channel && i.channel.id);
   const round = await env.DB.prepare('SELECT * FROM rounds WHERE channel_id=?').bind(channel).first();
   if (!round || !round.hero) return ephemeral({ content: 'There is no round running in this channel. Start one with `/rivals`.' });
+  return ephemeral({
+    content: '⚠️ **End this round for everyone?** The hero will be revealed and the round can\'t be continued.',
+    components: [{ type: 1, components: [
+      { type: 2, style: 4, label: 'End round', emoji: { name: '🏁' }, custom_id: `endgame:yes:${round.started_at}` },
+      { type: 2, style: 2, label: 'Cancel', custom_id: 'endgame:no' },
+    ] }],
+  });
+}
+
+// The buttons under the confirmation. Ends the round: reveals the hero and how everybody did.
+// Unfinished players aren't penalised.
+async function confirmEndGame(i, env, ctx) {
+  const [, choice, stamp] = String(i.data.custom_id).split(':');
+  const update = content => json({ type: 7, data: { content, components: [] } });
+  if (choice !== 'yes') return update('👍 Cancelled — the round keeps going.');
+  const channel = i.channel_id || (i.channel && i.channel.id);
+  const round = await env.DB.prepare('SELECT * FROM rounds WHERE channel_id=?').bind(channel).first();
+  if (!round || !round.hero || String(round.started_at) !== stamp) return update('This round is already over.');
   const { results } = await env.DB.prepare('SELECT * FROM attempts WHERE round_id=?').bind(round.round_id).all();
   const nameOf = id => `<@${id}>`;   // shows as the player's name; allowed_mentions below stops it pinging
   const count = a => { try { return JSON.parse(a.guesses || '[]').length; } catch (e) { return 0; } };
@@ -311,13 +329,14 @@ async function cmdEndGame(i, env, ctx) {
   // clear the hero (keeps the recent-heroes list so the next round still avoids repeats)
   await env.DB.prepare("UPDATE rounds SET hero='' WHERE channel_id=? AND round_id=?").bind(channel, round.round_id).run();
   ctx.waitUntil((await takeRoundMessages(env, channel)).done);      // remove this round's messages
-  ctx.waitUntil(rememberOriginal(env, i.token, channel));   // the result stays until the next round starts
-  return reply({ embeds: [{
+  // public result (remembered, so it is cleared when the next round starts)
+  ctx.waitUntil(followUp(env, i.token, { embeds: [{
     color: COLOR.lose, title: `🏁 Round over — the hero was ${round.hero}!`,
     thumbnail: { url: portraitUrl(round.hero) },
     description: (lines.length ? lines.join('\n') : 'Nobody guessed this round.') + '\n\nStart a new round with `/rivals`.',
     footer: { text: `Ended by ${userName(i)}` },
-  }], allowed_mentions: { parse: [] } });
+  }], allowed_mentions: { parse: [] } }, channel));
+  return update('✅ Round ended.');
 }
 
 // The fixed roster message: pictures + names of every hero, posted once (e.g. in #general) and pinned.
@@ -386,13 +405,14 @@ export default {
     await ensureSchema(env);
     try {
       if (i.type === 4) return await autocomplete(i, env);
+      if (i.type === 3 && String(i.data.custom_id).startsWith('endgame:')) return await confirmEndGame(i, env, ctx);
       // menus from older round messages: point people back to the search
       if (i.type === 3) return ephemeral({ content: 'Guess with `/guess` — start typing a hero name and pick it from the list.' });
       if (i.type === 2) {
         if (i.data.name === 'rivals') return await cmdRivals(i, env, ctx);
         if (i.data.name === 'guess') return await cmdGuess(i, env, ctx);
         if (i.data.name === 'leaderboard') return await cmdLeaderboard(i, env);
-        if (i.data.name === 'endgame') return await cmdEndGame(i, env, ctx);
+        if (i.data.name === 'endgame') return await cmdEndGame(i, env);
         if (i.data.name === 'setup') return await cmdSetup(i, env);
       }
       return ephemeral({ content: 'Unknown command.' });
