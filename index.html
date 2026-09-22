@@ -258,6 +258,493 @@ function initials(name){
 function portrait(hero, cls){
   const urls = portraitUrls(hero.name);
   const img = document.createElement('img');
+  img.alt = hero.name; if(cls) img.className=cls;
+  let i = 0, dead = false;
+  const giveUp = () => {
+    if(dead) return; dead = true;
+    const ph = document.createElement('div');
+    ph.className = 'ph' + (cls ? ' '+cls : '');
+    ph.textContent = initials(hero.name);
+    if(img.parentNode) img.replaceWith(ph);
+  };
+  img.onerror = () => { if(dead) return; i++; (i < urls.length) ? img.src = urls[i] : giveUp(); };
+  img.onload = () => { dead = true; };
+  setTimeout(() => { if(!img.complete || !img.naturalWidth) giveUp(); }, 15000);
+  img.src = urls[0];
+  return img;
+}
+
+/* ---------- comparison ---------- */
+function compareSet(a,b){
+  const A=new Set(a.map(norm)), B=new Set(b.map(norm));
+  let hit=0; A.forEach(v=>{ if(B.has(v)) hit++; });
+  if(hit===0) return 'b';
+  return (A.size===B.size && hit===A.size) ? 'g' : 'o';
+}
+function makeCell(cls, text, arrow){
+  const d=document.createElement('div');
+  d.className='cell '+cls;
+  if(arrow){ const s=document.createElement('div'); s.className='arrow'; s.textContent=arrow; d.appendChild(s); }
+  const t=document.createElement('div'); t.textContent=text; d.appendChild(t);
+  return d;
+}
+
+/* ---------- state ---------- */
+const LS='rivalsDaily.v1';
+function loadStore(){ try{ return JSON.parse(localStorage.getItem(LS)) || {}; }catch(e){ return {}; } }
+function saveStore(o){ try{ localStorage.setItem(LS, JSON.stringify(o)); }catch(e){} }
+
+let store = loadStore();
+store.stats = store.stats || {played:0, streak:0, best:0, dist:{}, lastDay:null};
+
+let freePlay=false, answer=null, guesses=[], done=false, today=dayIndex();
+
+function startDaily(){
+  freePlay=false; $('btnMode').textContent='Free play';
+  answer = heroForDay(today);
+  const saved = store.day && store.day.d===today ? store.day : null;
+  guesses = saved ? saved.g.slice() : [];
+  done = saved ? saved.done : false;
+  render();
+}
+function startFree(){
+  freePlay=true; $('btnMode').textContent='Back to daily';
+  answer = HEROES[Math.floor(Math.random()*HEROES.length)];
+  guesses=[]; done=false;
+  render();
+}
+
+function persist(){
+  if(freePlay) return;
+  store.day={d:today, g:guesses.slice(), done};
+  saveStore(store);
+}
+
+function recordWin(){
+  const s=store.stats;
+  if(s.lastDay===today) return;
+  s.played++;
+  s.streak = (s.lastDay===today-1) ? s.streak+1 : 1;
+  s.best = Math.max(s.best, s.streak);
+  s.dist[guesses.length] = (s.dist[guesses.length]||0)+1;
+  s.lastDay = today;
+  saveStore(store);
+}
+
+/* ---------- rendering ---------- */
+function render(){
+  const rows=$('rows'); rows.innerHTML='';
+  $('board').hidden = guesses.length===0;
+  guesses.slice().reverse().forEach(name=>{
+    const h = HEROES.find(x=>x.name===name); if(!h) return;
+    const tr=document.createElement('tr');
+
+    const tdHero=document.createElement('td');
+    const cellH=document.createElement('div'); cellH.className='cell heroCell';
+    cellH.appendChild(portrait(h));
+    const lbl=document.createElement('span'); lbl.textContent=h.name; cellH.appendChild(lbl);
+    tdHero.appendChild(cellH); tr.appendChild(tdHero);
+
+    const add=(cls,txt,arrow)=>{ const td=document.createElement('td'); td.appendChild(makeCell(cls,txt,arrow)); tr.appendChild(td); };
+    add(h.gender===answer.gender?'g':'b', h.gender);
+    add(compareSet(h.roles, answer.roles), h.roles.join(' / '));
+    add(compareSet(h.teams, answer.teams), h.teams.join(', '));
+    add(h.origin===answer.origin?'g':'b', h.origin);
+    add(h.year===answer.year?'g':'b', h.year, h.year===answer.year?'':(answer.year>h.year?'↑':'↓'));
+
+    rows.appendChild(tr);
+  });
+
+  const p=$('prompt');
+  if(freePlay) p.innerHTML='<b>Free play</b> — random hero, guess as many times as you like.';
+  else p.innerHTML='Puzzle <b>#'+(today-EPOCH+1)+'</b> &middot; a new hero every day &middot; guesses so far: <b>'+guesses.length+'</b>';
+
+  $('guess').disabled = done;
+  $('btnGo').disabled = done;
+  $('result').innerHTML='';
+  if(done) showResult();
+
+  const wrap=document.querySelector('.tableWrap');
+  const over = guesses.length>0 && wrap.scrollWidth > wrap.clientWidth + 4;
+  wrap.classList.toggle('fits', !over);
+  $('swipe').classList.toggle('on', over);
+
+  const y=heroForDay(today-1);
+  $('yesterday').innerHTML = freePlay ? '' : 'Yesterday&rsquo;s hero was <b>'+y.name.toUpperCase()+'</b>';
+}
+
+function emojiGrid(){
+  const map={g:'🟩',o:'🟧',b:'🟥'};
+  return guesses.map(name=>{
+    const h=HEROES.find(x=>x.name===name);
+    const y = h.year===answer.year ? '🟩' : (answer.year>h.year?'⬆️':'⬇️');
+    return map[h.gender===answer.gender?'g':'b'] + map[compareSet(h.roles,answer.roles)] +
+           map[compareSet(h.teams,answer.teams)] + map[h.origin===answer.origin?'g':'b'] + y;
+  }).join('\n');
+}
+
+function showResult(){
+  const s=store.stats;
+  const box=document.createElement('div'); box.className='result';
+  box.innerHTML='<h2>Solved in '+guesses.length+(guesses.length===1?' guess':' guesses')+'</h2>'+
+    '<div class="who">'+answer.name.toUpperCase()+'</div>'+
+    (freePlay?'':'<div class="statRow"><div><b>'+s.played+'</b><small>Played</small></div>'+
+      '<div><b>'+s.streak+'</b><small>Streak</small></div>'+
+      '<div><b>'+s.best+'</b><small>Best</small></div></div>');
+  const btns=document.createElement('div');
+  const share=document.createElement('button'); share.className='primary'; share.textContent='Share result';
+  share.onclick=doShare;
+  btns.appendChild(share);
+  if(freePlay){ const again=document.createElement('button'); again.textContent='New hero';
+    again.style.marginLeft='8px'; again.onclick=startFree; btns.appendChild(again); }
+  box.appendChild(btns);
+  $('result').appendChild(box);
+}
+
+function doShare(){
+  let txt = (freePlay ? 'Rivals Daily — free play' : 'Rivals Daily #'+(today-EPOCH+1)) +
+            ' — '+guesses.length+(guesses.length===1?' guess':' guesses')+'\n'+emojiGrid();
+  if(location.protocol.startsWith('http')) txt += '\n'+location.href.split('?')[0];
+  const fallback=()=>{ const ta=document.createElement('textarea'); ta.value=txt; document.body.appendChild(ta);
+    ta.select(); try{document.execCommand('copy');}catch(e){} ta.remove(); toast('Copied — paste it in Discord'); };
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(()=>toast('Copied — paste it in Discord'), fallback);
+  } else fallback();
+}
+
+function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show');
+  clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),1900); }
+
+/* ---------- guessing ---------- */
+function submitGuess(name){
+  if(done) return;
+  const h = HEROES.find(x=>norm(x.name)===norm(name));
+  if(!h){ toast('No hero by that name'); return; }
+  if(guesses.includes(h.name)){ toast('Already guessed'); return; }
+  guesses.push(h.name);
+  if(h.name===answer.name){ done=true; if(!freePlay) recordWin(); }
+  persist();
+  $('guess').value=''; hideAc();
+  render();
+  if(done) toast('Nailed it');
+}
+
+/* ---------- autocomplete ---------- */
+let acItems=[], acSel=-1;
+function hideAc(){ $('ac').hidden=true; acItems=[]; acSel=-1; }
+function showAc(){
+  const q=norm($('guess').value);
+  if(!q){ hideAc(); return; }
+  acItems = HEROES.filter(h=>norm(h.name).includes(q) && !guesses.includes(h.name)).slice(0,8);
+  const box=$('ac'); box.innerHTML=''; acSel=-1;
+  if(!acItems.length){ hideAc(); return; }
+  acItems.forEach((h,i)=>{
+    const d=document.createElement('div');
+    d.appendChild(portrait(h));
+    const sp=document.createElement('span'); sp.textContent=h.name; d.appendChild(sp);
+    d.onmousedown=e=>{ e.preventDefault(); submitGuess(h.name); };
+    box.appendChild(d);
+  });
+  box.hidden=false;
+}
+$('guess').addEventListener('input', showAc);
+$('guess').addEventListener('blur', ()=>setTimeout(hideAc,120));
+$('guess').addEventListener('keydown', e=>{
+  const box=$('ac');
+  if(e.key==='ArrowDown'||e.key==='ArrowUp'){
+    if(box.hidden) return; e.preventDefault();
+    acSel += (e.key==='ArrowDown'?1:-1);
+    if(acSel<0) acSel=acItems.length-1; if(acSel>=acItems.length) acSel=0;
+    [...box.children].forEach((c,i)=>c.classList.toggle('sel',i===acSel));
+  } else if(e.key==='Enter'){
+    e.preventDefault();
+    submitGuess(acSel>=0 ? acItems[acSel].name : (acItems[0] ? acItems[0].name : $('guess').value));
+  } else if(e.key==='Escape') hideAc();
+});
+$('btnGo').onclick=()=>submitGuess(acItems[0]?acItems[0].name:$('guess').value);
+$('btnHow').onclick=()=>dlgHow.showModal();
+$('btnMode').onclick=()=> freePlay ? startDaily() : startFree();
+$('btnStats').onclick=()=>{
+  const s=store.stats;
+  const keys=Object.keys(s.dist).map(Number).sort((a,b)=>a-b);
+  const max=Math.max(1,...keys.map(k=>s.dist[k]));
+  let bars = keys.length ? keys.map(k=>
+    '<div style="display:flex;align-items:center;gap:8px;margin:4px 0;font-size:13px">'+
+    '<span style="width:18px;color:var(--muted)">'+k+'</span>'+
+    '<span style="background:var(--accent);height:18px;border-radius:4px;min-width:22px;padding:0 6px;'+
+    'width:'+Math.round(s.dist[k]/max*80)+'%;display:flex;align-items:center;justify-content:flex-end;font-size:12px">'+s.dist[k]+'</span></div>'
+  ).join('') : '<p style="color:var(--muted);font-size:14px">No finished puzzles yet.</p>';
+  $('statBody').innerHTML='<div class="statRow"><div><b>'+s.played+'</b><small>Played</small></div>'+
+    '<div><b>'+s.streak+'</b><small>Streak</small></div><div><b>'+s.best+'</b><small>Best</small></div></div>'+
+    '<div style="font-size:11px;letter-spacing:1.4px;text-transform:uppercase;color:var(--muted);margin:10px 0 4px">Guesses to solve</div>'+bars;
+  dlgStats.showModal();
+};
+
+startDaily();
+$('guess').focus();
+</script>
+</body>
+</html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rivals Daily</title>
+<meta name="description" content="Guess the daily Marvel Rivals hero from gender, role, team, origin and release year.">
+<meta property="og:title" content="Rivals Daily">
+<meta property="og:description" content="Guess today's Marvel Rivals hero.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#090c18; --bg2:#121a33; --panel:#161f3d; --panel2:#1d2850;
+    --line:#2b3768; --text:#eef1ff; --muted:#93a0cc;
+    --accent:#7c5cff; --accent2:#00d4ff;
+    --good:#25a55f; --warn:#d68a20; --bad:#a8324a;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; padding:0 16px 64px;
+    font-family:'Chakra Petch',system-ui,-apple-system,sans-serif;
+    color:var(--text);
+    background:
+      radial-gradient(900px 500px at 15% -5%, #2a1b5e 0%, transparent 60%),
+      radial-gradient(800px 500px at 90% 0%, #0d3b57 0%, transparent 55%),
+      var(--bg);
+    min-height:100vh;
+  }
+  .wrap{max-width:860px;margin:0 auto}
+  header{text-align:center;padding:28px 0 8px}
+  h1{
+    margin:0; font-size:clamp(34px,8vw,60px); font-weight:700; letter-spacing:2px;
+    background:linear-gradient(180deg,#fff 40%,#9db4ff 100%);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    text-shadow:0 0 30px rgba(124,92,255,.35);
+  }
+  .tag{color:var(--muted);letter-spacing:3px;font-size:12px;text-transform:uppercase;margin-top:4px}
+  .bar{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:18px 0 6px}
+  button{font-family:inherit;cursor:pointer;border-radius:10px;border:1px solid var(--line);
+    background:var(--panel);color:var(--text);padding:9px 14px;font-size:14px;font-weight:600;
+    transition:.15s}
+  button:hover{background:var(--panel2);border-color:var(--accent)}
+  button.primary{background:linear-gradient(180deg,var(--accent),#5a3ee0);border-color:#6b4ff0}
+  button.primary:hover{filter:brightness(1.12)}
+  .prompt{text-align:center;margin:18px 0 10px;font-size:15px;color:var(--muted)}
+  .prompt b{color:var(--text)}
+
+  .inputRow{display:flex;gap:8px;max-width:520px;margin:0 auto;position:relative}
+  #guess{flex:1;font-family:inherit;font-size:16px;padding:13px 14px;border-radius:10px;
+    border:1px solid var(--line);background:rgba(9,12,24,.75);color:var(--text);outline:none}
+  #guess:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(124,92,255,.2)}
+  #guess:disabled{opacity:.5}
+  .ac{position:absolute;top:calc(100% + 6px);left:0;right:0;z-index:30;
+    background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden;
+    max-height:264px;overflow-y:auto;box-shadow:0 18px 40px rgba(0,0,0,.55)}
+  .ac div{display:flex;align-items:center;gap:10px;padding:8px 12px;font-size:15px}
+  .ac div:hover,.ac div.sel{background:var(--panel2)}
+  .ac img,.ac .ph{width:30px;height:30px;border-radius:6px;object-fit:cover;flex:none}
+
+  .tableWrap{overflow-x:auto;margin-top:26px;padding-bottom:4px;
+    -webkit-mask-image:linear-gradient(90deg,#000 0,#000 94%,transparent 100%);
+            mask-image:linear-gradient(90deg,#000 0,#000 94%,transparent 100%)}
+  .tableWrap.fits{-webkit-mask-image:none;mask-image:none}
+  .swipe{display:none;text-align:center;color:var(--muted);font-size:11px;letter-spacing:2px;
+    text-transform:uppercase;margin-top:6px}
+  .swipe.on{display:block}
+  table{border-collapse:separate;border-spacing:6px;margin:0 auto;min-width:640px}
+  th{font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:var(--muted);font-weight:600;padding-bottom:2px}
+  td{padding:0}
+  .cell{width:96px;height:78px;border-radius:10px;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;text-align:center;padding:5px;
+    font-size:12px;font-weight:600;line-height:1.2;border:1px solid rgba(255,255,255,.08);
+    animation:flip .42s ease both}
+  .g{background:var(--good)} .o{background:var(--warn)} .b{background:var(--bad)}
+  .heroCell{background:var(--panel);padding:0;overflow:hidden;position:relative}
+  .heroCell img,.heroCell .ph{width:100%;height:100%;object-fit:cover;display:block}
+  .ph{display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;
+      background:linear-gradient(140deg,#3a2a7a,#1b2a5e);color:#cdd6ff}
+  .heroCell span{position:absolute;left:0;right:0;bottom:0;background:rgba(6,9,20,.82);
+    font-size:10px;padding:3px 2px;letter-spacing:.3px}
+  .arrow{font-size:17px;line-height:1}
+  @keyframes flip{from{transform:rotateX(90deg);opacity:0}to{transform:rotateX(0);opacity:1}}
+
+  .result{max-width:520px;margin:26px auto 0;background:var(--panel);border:1px solid var(--line);
+    border-radius:14px;padding:20px;text-align:center}
+  .result h2{margin:0 0 6px;font-size:22px;letter-spacing:1px}
+  .result .who{font-size:26px;font-weight:700;color:var(--accent2);letter-spacing:1px}
+  .statRow{display:flex;justify-content:center;gap:22px;margin:16px 0 14px;flex-wrap:wrap}
+  .statRow div{min-width:60px}
+  .statRow b{display:block;font-size:22px}
+  .statRow small{color:var(--muted);font-size:11px;letter-spacing:1px;text-transform:uppercase}
+  footer{text-align:center;color:var(--muted);font-size:13px;margin-top:34px;line-height:1.7}
+  footer b{color:var(--accent2)}
+  .fine{font-size:11px;opacity:.65;max-width:520px;margin:10px auto 0}
+  .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:var(--accent);
+    padding:10px 18px;border-radius:999px;font-weight:600;font-size:14px;opacity:0;
+    pointer-events:none;transition:.25s}
+  .toast.show{opacity:1}
+  dialog{border:1px solid var(--line);background:var(--panel);color:var(--text);border-radius:14px;
+    max-width:440px;padding:22px;font-family:inherit}
+  dialog::backdrop{background:rgba(4,6,14,.72)}
+  dialog h3{margin:0 0 10px}
+  dialog ul{padding-left:18px;line-height:1.7;font-size:14px}
+  .key{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-1px;margin-right:4px}
+  @media(max-width:600px){
+    .cell{width:74px;height:68px;font-size:11px}
+    table{min-width:520px;border-spacing:4px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>RIVALS DAILY</h1>
+    <div class="tag">Guess the hero</div>
+  </header>
+
+  <div class="bar">
+    <button id="btnHow">How to play</button>
+    <button id="btnStats">Stats</button>
+    <button id="btnMode">Free play</button>
+  </div>
+
+  <div class="prompt" id="prompt"></div>
+
+  <div class="inputRow">
+    <input id="guess" autocomplete="off" spellcheck="false" placeholder="Type a hero name...">
+    <button class="primary" id="btnGo">Guess</button>
+    <div class="ac" id="ac" hidden></div>
+  </div>
+
+  <div class="tableWrap">
+    <table id="board" hidden>
+      <thead><tr><th>Hero</th><th>Gender</th><th>Role</th><th>Team</th><th>Origin</th><th>Year</th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+
+  <div class="swipe" id="swipe">swipe to see every column &rarr;</div>
+
+  <div id="result"></div>
+
+  <footer>
+    <div id="yesterday"></div>
+    <div class="fine">Unofficial fan project. Not affiliated with Marvel or NetEase. Hero art is linked from the Marvel Rivals community wiki.</div>
+  </footer>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<dialog id="dlgHow">
+  <h3>How to play</h3>
+  <p style="font-size:14px;color:var(--muted);margin-top:0">Guess the hero. Every guess shows how close each attribute is.</p>
+  <ul>
+    <li><span class="key" style="background:var(--good)"></span><b>Green</b> — exact match.</li>
+    <li><span class="key" style="background:var(--warn)"></span><b>Orange</b> — partly right. Some teams (or roles) overlap, but not all of them.</li>
+    <li><span class="key" style="background:var(--bad)"></span><b>Red</b> — no match.</li>
+    <li><b>↑ / ↓</b> on the year — the answer came out later / earlier.</li>
+  </ul>
+  <p style="font-size:14px">One hero per day, the same one for everyone. Hit <b>Share</b> when you finish and paste the grid into Discord.</p>
+  <button class="primary" onclick="dlgHow.close()">Got it</button>
+</dialog>
+
+<dialog id="dlgStats">
+  <h3>Your stats</h3>
+  <div id="statBody"></div>
+  <button class="primary" onclick="dlgStats.close()" style="margin-top:14px">Close</button>
+</dialog>
+
+<script src="heroes.js"></script>
+<script>
+/* ---------- helpers ---------- */
+const $ = id => document.getElementById(id);
+const norm = s => s.toLowerCase().replace(/[^a-z0-9]/g,'');
+
+function hash(str){ let h=2166136261; for(let i=0;i<str.length;i++){h^=str.charCodeAt(i);h=Math.imul(h,16777619);} return h>>>0; }
+function rng(seed){ let s=seed>>>0; return ()=>{ s=(s*1664525+1013904223)>>>0; return s/4294967296; }; }
+
+/* Deterministic no-repeat rotation: shuffle the roster per cycle, walk it one hero a day. */
+const DAY_MS = 86400000;
+function dayIndex(d=new Date()){ return Math.floor(Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate())/DAY_MS); }
+const EPOCH = dayIndex(new Date(Date.UTC(2026,0,1)));   // puzzle #1 = 1 Jan 2026
+
+function heroForDay(di){
+  const n = HEROES.length;
+  const offset = di - EPOCH;
+  const cycle = Math.floor(offset / n);
+  const pos = ((offset % n) + n) % n;
+  const order = HEROES.map((h,i)=>i);
+  const rand = rng(hash('rivals-daily-cycle-' + cycle));
+  for(let i=order.length-1;i>0;i--){ const j=Math.floor(rand()*(i+1)); [order[i],order[j]]=[order[j],order[i]]; }
+  return HEROES[order[pos]];
+}
+
+/* ---------- portraits (linked from the community wiki, with graceful fallback) ---------- */
+/* Fandom serves images at /images/<h0>/<h0h1>/<Filename>, where h is md5 of the filename. */
+function md5(str){
+  function rl(n,c){return(n<<c)|(n>>>(32-c));}
+  function au(x,y){var l=(x&0xFFFF)+(y&0xFFFF),m=(x>>16)+(y>>16)+(l>>16);return(m<<16)|(l&0xFFFF);}
+  function cmn(q,a,b,x,s,t){return au(rl(au(au(a,q),au(x,t)),s),b);}
+  function ff(a,b,c,d,x,s,t){return cmn((b&c)|((~b)&d),a,b,x,s,t);}
+  function gg(a,b,c,d,x,s,t){return cmn((b&d)|(c&(~d)),a,b,x,s,t);}
+  function hh(a,b,c,d,x,s,t){return cmn(b^c^d,a,b,x,s,t);}
+  function ii(a,b,c,d,x,s,t){return cmn(c^(b|(~d)),a,b,x,s,t);}
+  function utf8(s){return unescape(encodeURIComponent(s));}
+  function blk(s){
+    var n=((s.length+8)>>6)+1,b=new Array(n*16).fill(0);
+    for(var i=0;i<s.length;i++)b[i>>2]|=s.charCodeAt(i)<<((i%4)*8);
+    b[i>>2]|=0x80<<((i%4)*8); b[n*16-2]=s.length*8; return b;
+  }
+  function hex(n){var s='';for(var i=0;i<4;i++)s+=((n>>(i*8+4))&0x0F).toString(16)+((n>>(i*8))&0x0F).toString(16);return s;}
+  var x=blk(utf8(str)),a=1732584193,b=-271733879,c=-1732584194,d=271733878;
+  for(var i=0;i<x.length;i+=16){
+    var oa=a,ob=b,oc=c,od=d;
+    a=ff(a,b,c,d,x[i],7,-680876936);d=ff(d,a,b,c,x[i+1],12,-389564586);c=ff(c,d,a,b,x[i+2],17,606105819);b=ff(b,c,d,a,x[i+3],22,-1044525330);
+    a=ff(a,b,c,d,x[i+4],7,-176418897);d=ff(d,a,b,c,x[i+5],12,1200080426);c=ff(c,d,a,b,x[i+6],17,-1473231341);b=ff(b,c,d,a,x[i+7],22,-45705983);
+    a=ff(a,b,c,d,x[i+8],7,1770035416);d=ff(d,a,b,c,x[i+9],12,-1958414417);c=ff(c,d,a,b,x[i+10],17,-42063);b=ff(b,c,d,a,x[i+11],22,-1990404162);
+    a=ff(a,b,c,d,x[i+12],7,1804603682);d=ff(d,a,b,c,x[i+13],12,-40341101);c=ff(c,d,a,b,x[i+14],17,-1502002290);b=ff(b,c,d,a,x[i+15],22,1236535329);
+    a=gg(a,b,c,d,x[i+1],5,-165796510);d=gg(d,a,b,c,x[i+6],9,-1069501632);c=gg(c,d,a,b,x[i+11],14,643717713);b=gg(b,c,d,a,x[i],20,-373897302);
+    a=gg(a,b,c,d,x[i+5],5,-701558691);d=gg(d,a,b,c,x[i+10],9,38016083);c=gg(c,d,a,b,x[i+15],14,-660478335);b=gg(b,c,d,a,x[i+4],20,-405537848);
+    a=gg(a,b,c,d,x[i+9],5,568446438);d=gg(d,a,b,c,x[i+14],9,-1019803690);c=gg(c,d,a,b,x[i+3],14,-187363961);b=gg(b,c,d,a,x[i+8],20,1163531501);
+    a=gg(a,b,c,d,x[i+13],5,-1444681467);d=gg(d,a,b,c,x[i+2],9,-51403784);c=gg(c,d,a,b,x[i+7],14,1735328473);b=gg(b,c,d,a,x[i+12],20,-1926607734);
+    a=hh(a,b,c,d,x[i+5],4,-378558);d=hh(d,a,b,c,x[i+8],11,-2022574463);c=hh(c,d,a,b,x[i+11],16,1839030562);b=hh(b,c,d,a,x[i+14],23,-35309556);
+    a=hh(a,b,c,d,x[i+1],4,-1530992060);d=hh(d,a,b,c,x[i+4],11,1272893353);c=hh(c,d,a,b,x[i+7],16,-155497632);b=hh(b,c,d,a,x[i+10],23,-1094730640);
+    a=hh(a,b,c,d,x[i+13],4,681279174);d=hh(d,a,b,c,x[i],11,-358537222);c=hh(c,d,a,b,x[i+3],16,-722521979);b=hh(b,c,d,a,x[i+6],23,76029189);
+    a=hh(a,b,c,d,x[i+9],4,-640364487);d=hh(d,a,b,c,x[i+12],11,-421815835);c=hh(c,d,a,b,x[i+15],16,530742520);b=hh(b,c,d,a,x[i+2],23,-995338651);
+    a=ii(a,b,c,d,x[i],6,-198630844);d=ii(d,a,b,c,x[i+7],10,1126891415);c=ii(c,d,a,b,x[i+14],15,-1416354905);b=ii(b,c,d,a,x[i+5],21,-57434055);
+    a=ii(a,b,c,d,x[i+12],6,1700485571);d=ii(d,a,b,c,x[i+3],10,-1894986606);c=ii(c,d,a,b,x[i+10],15,-1051523);b=ii(b,c,d,a,x[i+1],21,-2054922799);
+    a=ii(a,b,c,d,x[i+8],6,1873313359);d=ii(d,a,b,c,x[i+15],10,-30611744);c=ii(c,d,a,b,x[i+6],15,-1560198380);b=ii(b,c,d,a,x[i+13],21,1309151649);
+    a=ii(a,b,c,d,x[i+4],6,-145523070);d=ii(d,a,b,c,x[i+11],10,-1120210379);c=ii(c,d,a,b,x[i+2],15,718787259);b=ii(b,c,d,a,x[i+9],21,-343485551);
+    a=au(a,oa);b=au(b,ob);c=au(c,oc);d=au(d,od);
+  }
+  return hex(a)+hex(b)+hex(c)+hex(d);
+}
+function portraitUrls(name){
+  const base='https://static.wikia.nocookie.net/marvelrivals/images/';
+  const alt=[name];
+  if(name.startsWith('The ')) alt.push(name.slice(4));
+  if(name==='Gorr the God Butcher') alt.push('Gorr');
+  if(name==='Jeff the Land Shark') alt.push('Jeff');
+  if(name==='Rocket Raccoon') alt.push('Rocket');
+  if(name==='Cloak & Dagger') alt.push('Cloak and Dagger');
+  if(name==='Mister Fantastic') alt.push('Mr. Fantastic');
+  const sfx=[' Default Costume LoC Icon.png',' Default Costume Icon.png',' LoC Icon.png',' Icon.png','.png'];
+  const out=[];
+  for(const n of alt) for(const s of sfx){
+    const f=(n+s).replace(/ /g,'_');
+    const h=md5(f);
+    out.push(base+h[0]+'/'+h.slice(0,2)+'/'+encodeURI(f));
+  }
+  return out;
+}
+function initials(name){
+  return name.replace(/^The /,'').split(/[\s&-]+/).filter(Boolean).slice(0,2).map(w=>w[0].toUpperCase()).join('');
+}
+function portrait(hero, cls){
+  const urls = portraitUrls(hero.name);
+  const img = document.createElement('img');
   img.alt = hero.name; img.loading='lazy'; if(cls) img.className=cls;
   let i = 0, dead = false;
   const giveUp = () => {
