@@ -75,7 +75,7 @@
     animation:flip .42s ease both}
   .g{background:var(--good)} .o{background:var(--warn)} .b{background:var(--bad)}
   .heroCell{background:var(--panel);padding:0;overflow:hidden;position:relative}
-  .heroCell img,.heroCell .ph{width:100%;height:100%;object-fit:cover;display:block}
+  .heroCell img,.heroCell .ph{width:100%;height:100%;object-fit:cover;object-position:50% 14%;display:block}
   .ph{display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;
       background:linear-gradient(140deg,#3a2a7a,#1b2a5e);color:#cdd6ff}
   .heroCell span{position:absolute;left:0;right:0;bottom:0;background:rgba(6,9,20,.82);
@@ -236,7 +236,6 @@ function md5(str){
 }
 function portraitUrls(name){
   const base='https://static.wikia.nocookie.net/marvel-rivals/images/';
-  const crop='/revision/latest/top-crop/width/200/height/200';
   const alt=[name];
   if(name.startsWith('The ')) alt.push(name.slice(4));
   if(name==='Gorr the God Butcher') alt.push('Gorr');
@@ -244,12 +243,12 @@ function portraitUrls(name){
   if(name==='Rocket Raccoon') alt.push('Rocket');
   if(name==='Cloak & Dagger') alt.push('Cloak and Dagger');
   if(name==='Mister Fantastic') alt.push('Mr. Fantastic');
-  const sfx=[' Main Page Portrait.png',' Hero Logo.png',' Default Costume LoC Icon.png'];
+  const sfx=[' Main Page Portrait.png',' Hero Logo.png'];
   const out=[];
   for(const n of alt) for(const s of sfx){
     const f=(n+s).replace(/ /g,'_');
     const h=md5(f);
-    out.push(base+h[0]+'/'+h.slice(0,2)+'/'+encodeURI(f)+crop);
+    out.push(base+h[0]+'/'+h.slice(0,2)+'/'+encodeURI(f)+'?width=220');
   }
   return out;
 }
