@@ -122,6 +122,14 @@
   .tab.on{background:var(--panel2);border-color:var(--rc,var(--accent));color:#fff}
   .tab[data-role="all"]{--rc:#cdd6ff}
   #rosterBody{overflow:auto;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+  /* hide / show the hero grid (hidden by default: play from memory) */
+  .eye{margin-left:8px;padding:6px 12px;font-size:12px;letter-spacing:1.2px;text-transform:uppercase;border-radius:999px}
+  #rosterHidden{display:none}
+  .roster.hid .tabs,.roster.hid #rosterBody{display:none}
+  .roster.hid .eye{margin-left:auto}
+  .roster.hid #rosterHidden{display:flex;flex:1;flex-direction:column;align-items:center;justify-content:center;gap:12px;
+    text-align:center;color:var(--muted);font-size:15px;padding:30px 10px;min-height:160px}
+  #rosterHidden .big{font-size:44px;opacity:.5}
   .grid{display:grid;grid-template-columns:repeat(var(--cols),minmax(0,1fr));gap:8px}
   .htile{display:flex;flex-direction:column;padding:0;border-radius:9px;overflow:hidden;min-width:0;
     background:var(--panel2);border:1px solid var(--line);text-align:center;transition:.15s}
@@ -212,11 +220,11 @@
           <thead><tr><th>Hero</th><th>Gender</th><th>Role</th><th>Team</th><th>Origin</th><th>Year</th></tr></thead>
           <tbody id="rows"></tbody>
         </table>
-        <div class="empty" id="empty"><div class="big">?</div>Type a name or pick a hero on the right<br>to make your first guess.</div>
+        <div class="empty" id="empty"><div class="big">?</div>Type a hero name to make your first guess.</div>
       </div>
     </section>
 
-    <aside class="panel roster">
+    <aside class="panel roster hid" id="roster">
       <div class="rosterHead"><b>Heroes</b><span id="rosterCount"></span>
         <div class="tabs" id="tabs">
           <button class="tab on" data-role="all">All</button>
@@ -224,8 +232,11 @@
           <button class="tab g-due" data-role="Duelist"><i></i>Duelist</button>
           <button class="tab g-str" data-role="Strategist"><i></i>Strategist</button>
         </div>
+        <button class="eye" id="btnEye">Show heroes</button>
       </div>
       <div id="rosterBody"></div>
+      <div id="rosterHidden"><div class="big">&#128584;</div>Heroes are hidden &mdash; guess from memory!<br>Type a hero name in the box on the left.
+        <button class="primary" id="btnShow">Show heroes</button></div>
     </aside>
   </main>
 
@@ -454,6 +465,16 @@ function syncRoster(){
   });
 }
 
+/* hero grid starts hidden on every visit; the button toggles it */
+function setRosterHidden(h){
+  $('roster').classList.toggle('hid', h);
+  $('btnEye').textContent = h ? 'Show heroes' : 'Hide heroes';
+  $('guess').placeholder = h ? 'Type a hero name' : 'Click on any hero';
+  if(!h) fitRoster();
+}
+$('btnEye').onclick=()=>setRosterHidden(!$('roster').classList.contains('hid'));
+$('btnShow').onclick=()=>setRosterHidden(false);
+
 /* ---------- fit everything into one screen ---------- */
 const FIT = matchMedia('(min-width:1000px) and (min-height:560px)');
 function fitRoster(){
@@ -656,6 +677,7 @@ $('btnStats').onclick=()=>{
   if(h){ answer=h; guesses=(r.g||[]).filter(n=>HEROES.some(x=>x.name===n)).slice(0,MAX_GUESSES); done=!!r.done;
          won = r.won!==undefined ? !!r.won : (done && guesses.includes(h.name)); render(); }
   else newRound();
+  setRosterHidden(true);
   $('guess').focus();
   if(document.fonts && document.fonts.ready) document.fonts.ready.then(fitAll);
 })();
