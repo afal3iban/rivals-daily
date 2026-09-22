@@ -78,6 +78,12 @@
   .result .who{font-size:22px;font-weight:700;color:var(--accent2);letter-spacing:1px;line-height:1.1}
   .result .sub{font-size:13px;color:var(--muted);margin-top:2px}
   .result .sub b{color:var(--text)}
+  .result.lost{background:linear-gradient(90deg,rgba(168,50,74,.22),rgba(124,92,255,.08));border-color:rgba(255,90,110,.45)}
+  .result.lost .who{color:#ff8a9a}
+  .pips{display:inline-flex;gap:5px;vertical-align:middle;margin-left:8px}
+  .pips i{width:10px;height:10px;border-radius:50%;border:1.5px solid var(--line);display:inline-block}
+  .pips i.on{background:var(--accent);border-color:var(--accent)}
+  .pips i.last{background:var(--bad);border-color:var(--bad)}
   .result .btns{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
 
   /* ---------- board ---------- */
@@ -230,14 +236,14 @@
 
 <dialog id="dlgHow">
   <h3>How to play</h3>
-  <p style="font-size:14px;color:var(--muted);margin-top:0">A random hero is picked. Guess who it is — every guess shows how close each attribute is.</p>
+  <p style="font-size:14px;color:var(--muted);margin-top:0">A random hero is picked. You get <b>7 guesses</b> — every guess shows how close each attribute is.</p>
   <ul>
     <li><span class="key" style="background:var(--good)"></span><b>Green</b> — exact match.</li>
     <li><span class="key" style="background:var(--warn)"></span><b>Orange</b> — partly right. Some teams (or roles) overlap, but not all of them.</li>
     <li><span class="key" style="background:var(--bad)"></span><b>Red</b> — no match.</li>
     <li><b>↑ / ↓</b> on the year — the answer came out later / earlier.</li>
   </ul>
-  <p style="font-size:14px">Type a name or click a hero on the right. Unlimited guesses, unlimited rounds — hit <b>New hero</b> any time.</p>
+  <p style="font-size:14px">Type a name or click a hero on the right. Unlimited rounds — hit <b>New hero</b> any time (skipping a round you've started counts as a loss).</p>
   <button class="primary" onclick="dlgHow.close()">Got it</button>
 </dialog>
 
@@ -362,10 +368,13 @@ function loadStore(){ try{ return JSON.parse(localStorage.getItem(LS)) || {}; }c
 function saveStore(){ try{ localStorage.setItem(LS, JSON.stringify(store)); }catch(e){} }
 
 let store = loadStore();
-store.stats  = store.stats  || {played:0, total:0, best:null, dist:{}};
+const MAX_GUESSES = 7;
+store.stats  = store.stats  || {played:0, wins:0, total:0, best:null, dist:{}, streak:0, maxStreak:0};
+if(store.stats.wins===undefined){ store.stats.wins=store.stats.played; }          /* older saves: every round was a win */
+if(store.stats.streak===undefined){ store.stats.streak=0; store.stats.maxStreak=0; }
 store.recent = store.recent || [];
 
-let answer=null, guesses=[], done=false;
+let answer=null, guesses=[], done=false, won=false;
 
 /* random hero, avoiding the last several answers so repeats feel rare */
 function pickHero(){
@@ -375,20 +384,31 @@ function pickHero(){
   return pool[Math.floor(Math.random()*pool.length)];
 }
 function newRound(){
-  if(answer && !done && guesses.length) toast('It was '+answer.name);
+  if(answer && !done && guesses.length){ recordLoss(); toast('Skipped \u2014 it was '+answer.name); }
   answer = pickHero();
   store.recent = [answer.name].concat(store.recent.filter(n=>n!==answer.name)).slice(0, Math.min(20, HEROES.length-1));
-  guesses=[]; done=false;
+  guesses=[]; done=false; won=false;
   persist(); render();
   $('guess').value=''; $('guess').focus();
 }
-function persist(){ store.round={a:answer.name, g:guesses.slice(), done}; saveStore(); }
+function persist(){ store.round={a:answer.name, g:guesses.slice(), done, won}; saveStore(); }
 function recordWin(){
   const s=store.stats, n=guesses.length;
-  s.played++; s.total+=n;
+  s.played++; s.wins++; s.total+=n;
   s.best = (s.best===null) ? n : Math.min(s.best, n);
   s.dist[n] = (s.dist[n]||0)+1;
+  s.streak++; s.maxStreak=Math.max(s.maxStreak, s.streak);
   saveStore();
+}
+function recordLoss(){
+  const s=store.stats;
+  s.played++; s.streak=0;
+  saveStore();
+}
+function pips(){
+  let h='<span class="pips">';
+  for(let i=0;i<MAX_GUESSES;i++) h+='<i class="'+(i<guesses.length?(done&&!won&&i===MAX_GUESSES-1?'last':'on'):'')+'"></i>';
+  return h+'</span>';
 }
 
 /* ---------- hero select ---------- */
@@ -499,9 +519,10 @@ function render(){
     rows.appendChild(tr);
   });
 
+  const left = MAX_GUESSES-guesses.length;
   $('prompt').innerHTML = done
-    ? 'Solved! Hit <b>Next hero</b> for another round.'
-    : 'Unlimited guesses &middot; guesses this round: <b>'+guesses.length+'</b>';
+    ? (won ? 'Solved! Hit <b>Next hero</b> for another round.' : 'Out of guesses. Hit <b>Next hero</b> to try another.')
+    : 'Guess <b>'+Math.min(guesses.length+1,MAX_GUESSES)+'</b> of '+MAX_GUESSES+' &middot; <b>'+left+'</b> left'+pips();
 
   $('guess').disabled = done;
   $('btnGo').disabled = done;
@@ -525,13 +546,15 @@ function emojiGrid(){
 
 function showResult(){
   const s=store.stats;
-  const avg = s.played ? (s.total/s.played).toFixed(1) : '–';
-  const box=document.createElement('div'); box.className='result';
+  const avg = s.wins ? (s.total/s.wins).toFixed(1) : '–';
+  const pct = s.played ? Math.round(100*s.wins/s.played) : 0;
+  const box=document.createElement('div'); box.className='result'+(won?'':' lost');
   const pic=document.createElement('div'); pic.className='pic'; pic.appendChild(portrait(answer));
   const info=document.createElement('div'); info.className='info';
   const who=document.createElement('div'); who.className='who'; who.textContent=answer.name.toUpperCase();
   const sub=document.createElement('div'); sub.className='sub';
-  sub.innerHTML='Solved in <b>'+guesses.length+'</b> &middot; '+s.played+' solved &middot; avg <b>'+avg+'</b> &middot; best <b>'+(s.best===null?'–':s.best)+'</b>';
+  sub.innerHTML=(won ? 'Solved in <b>'+guesses.length+'/'+MAX_GUESSES+'</b>' : 'Out of guesses')+
+    ' &middot; win rate <b>'+pct+'%</b> &middot; streak <b>'+s.streak+'</b>';
   info.appendChild(who); info.appendChild(sub);
   const btns=document.createElement('div'); btns.className='btns';
   const nxt=document.createElement('button'); nxt.className='primary'; nxt.textContent='Next hero ▶'; nxt.onclick=newRound;
@@ -542,7 +565,7 @@ function showResult(){
 }
 
 function doShare(){
-  let txt = 'Rivals — '+answer.name+' in '+guesses.length+(guesses.length===1?' guess':' guesses')+'\n'+emojiGrid();
+  let txt = 'Rivals \u2014 '+answer.name+' '+(won?guesses.length:'X')+'/'+MAX_GUESSES+'\n'+emojiGrid();
   if(location.protocol.startsWith('http')) txt += '\n'+location.href.split('?')[0];
   const fallback=()=>{ const ta=document.createElement('textarea'); ta.value=txt; document.body.appendChild(ta);
     ta.select(); try{document.execCommand('copy');}catch(e){} ta.remove(); toast('Copied — paste it in Discord'); };
@@ -561,11 +584,12 @@ function submitGuess(name){
   if(!h){ toast('No hero by that name'); return; }
   if(guesses.includes(h.name)){ toast('Already guessed'); return; }
   guesses.push(h.name);
-  if(h.name===answer.name){ done=true; recordWin(); }
+  if(h.name===answer.name){ done=true; won=true; recordWin(); }
+  else if(guesses.length>=MAX_GUESSES){ done=true; won=false; recordLoss(); }
   persist();
   $('guess').value=''; hideAc();
   render();
-  if(done) toast('Nailed it');
+  if(done) toast(won ? 'Nailed it' : 'Out of guesses \u2014 it was '+answer.name);
 }
 
 /* ---------- autocomplete ---------- */
@@ -605,17 +629,22 @@ $('btnHow').onclick=()=>dlgHow.showModal();
 $('btnNew').onclick=newRound;
 $('btnStats').onclick=()=>{
   const s=store.stats;
-  const avg = s.played ? (s.total/s.played).toFixed(1) : '–';
-  const keys=Object.keys(s.dist).map(Number).sort((a,b)=>a-b);
-  const max=Math.max(1,...keys.map(k=>s.dist[k]));
-  const bars = keys.length ? keys.map(k=>
+  const avg = s.wins ? (s.total/s.wins).toFixed(1) : '–';
+  const pct = s.played ? Math.round(100*s.wins/s.played) : 0;
+  const losses = s.played - s.wins;
+  const rowsData=[];
+  for(let k=1;k<=MAX_GUESSES;k++) rowsData.push([String(k), s.dist[k]||0, 'var(--accent)']);
+  rowsData.push(['X', losses, 'var(--bad)']);
+  const max=Math.max(1,...rowsData.map(r=>r[1]));
+  const bars = rowsData.map(([k,v,c])=>
     '<div style="display:flex;align-items:center;gap:8px;margin:4px 0;font-size:13px">'+
-    '<span style="width:22px;color:var(--muted)">'+k+'</span>'+
-    '<span style="background:var(--accent);height:18px;border-radius:4px;min-width:22px;padding:0 6px;'+
-    'width:'+Math.round(s.dist[k]/max*80)+'%;display:flex;align-items:center;justify-content:flex-end;font-size:12px">'+s.dist[k]+'</span></div>'
-  ).join('') : '<p style="color:var(--muted);font-size:14px">No rounds solved yet.</p>';
-  $('statBody').innerHTML='<div class="statRow"><div><b>'+s.played+'</b><small>Solved</small></div>'+
-    '<div><b>'+avg+'</b><small>Avg guesses</small></div><div><b>'+(s.best===null?'–':s.best)+'</b><small>Best</small></div></div>'+
+    '<span style="width:16px;color:var(--muted)">'+k+'</span>'+
+    '<span style="background:'+c+';height:18px;border-radius:4px;min-width:22px;padding:0 6px;opacity:'+(v?1:.35)+';'+
+    'width:'+Math.max(6,Math.round(v/max*85))+'%;display:flex;align-items:center;justify-content:flex-end;font-size:12px">'+v+'</span></div>'
+  ).join('');
+  $('statBody').innerHTML='<div class="statRow"><div><b>'+s.played+'</b><small>Played</small></div>'+
+    '<div><b>'+pct+'%</b><small>Win rate</small></div><div><b>'+s.streak+'</b><small>Streak</small></div>'+
+    '<div><b>'+s.maxStreak+'</b><small>Best streak</small></div><div><b>'+avg+'</b><small>Avg guesses</small></div></div>'+
     '<div style="font-size:11px;letter-spacing:1.4px;text-transform:uppercase;color:var(--muted);margin:10px 0 4px">Guesses to solve</div>'+bars;
   dlgStats.showModal();
 };
@@ -624,7 +653,8 @@ $('btnStats').onclick=()=>{
 (function start(){
   const r = store.round;
   const h = r && HEROES.find(x=>x.name===r.a);
-  if(h){ answer=h; guesses=(r.g||[]).filter(n=>HEROES.some(x=>x.name===n)); done=!!r.done; render(); }
+  if(h){ answer=h; guesses=(r.g||[]).filter(n=>HEROES.some(x=>x.name===n)).slice(0,MAX_GUESSES); done=!!r.done;
+         won = r.won!==undefined ? !!r.won : (done && guesses.includes(h.name)); render(); }
   else newRound();
   $('guess').focus();
   if(document.fonts && document.fonts.ready) document.fonts.ready.then(fitAll);
