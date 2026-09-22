@@ -3,190 +3,218 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Rivals Daily</title>
-<meta name="description" content="Guess the daily Marvel Rivals hero from gender, role, team, origin and release year.">
-<meta property="og:title" content="Rivals Daily">
-<meta property="og:description" content="Guess today's Marvel Rivals hero.">
+<title>Rivals — Guess the Hero</title>
+<meta name="description" content="Guess the Marvel Rivals hero from gender, role, team, origin and release year. Unlimited rounds.">
+<meta property="og:title" content="Rivals — Guess the Hero">
+<meta property="og:description" content="Guess the Marvel Rivals hero. Unlimited rounds.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg:#090c18; --bg2:#121a33; --panel:#161f3d; --panel2:#1d2850;
+    --bg:#090c18; --panel:#161f3d; --panel2:#1d2850;
     --line:#2b3768; --text:#eef1ff; --muted:#93a0cc;
     --accent:#7c5cff; --accent2:#00d4ff;
     --good:#25a55f; --warn:#d68a20; --bad:#a8324a;
+    --van:#4aa3ff; --due:#ff5a6e; --str:#3fd18f;
+    --cw:108px; --ch:88px; --cf:13px;
   }
   *{box-sizing:border-box}
   body{
-    margin:0; padding:0 16px 64px;
+    margin:0; padding:0 20px 64px;
     font-family:'Chakra Petch',system-ui,-apple-system,sans-serif;
     color:var(--text);
     background:
-      radial-gradient(900px 500px at 15% -5%, #2a1b5e 0%, transparent 60%),
-      radial-gradient(800px 500px at 90% 0%, #0d3b57 0%, transparent 55%),
+      radial-gradient(1100px 600px at 12% -8%, #2a1b5e 0%, transparent 60%),
+      radial-gradient(1000px 600px at 92% -4%, #0d3b57 0%, transparent 55%),
       var(--bg);
     min-height:100vh;
   }
-  .wrap{max-width:860px;margin:0 auto}
-  header{text-align:center;padding:28px 0 8px}
+  .wrap{max-width:1500px;margin:0 auto}
+  header{text-align:center;padding:26px 0 4px}
   h1{
-    margin:0; font-size:clamp(34px,8vw,60px); font-weight:700; letter-spacing:2px;
+    margin:0; font-size:clamp(40px,7vw,78px); font-weight:700; letter-spacing:6px;
     background:linear-gradient(180deg,#fff 40%,#9db4ff 100%);
     -webkit-background-clip:text; background-clip:text; color:transparent;
-    text-shadow:0 0 30px rgba(124,92,255,.35);
+    text-shadow:0 0 34px rgba(124,92,255,.35);
   }
-  .tag{color:var(--muted);letter-spacing:3px;font-size:12px;text-transform:uppercase;margin-top:4px}
-  .bar{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:18px 0 6px}
+  .tag{color:var(--muted);letter-spacing:4px;font-size:13px;text-transform:uppercase;margin-top:2px}
+  .bar{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:18px 0 4px}
   button{font-family:inherit;cursor:pointer;border-radius:10px;border:1px solid var(--line);
-    background:var(--panel);color:var(--text);padding:9px 14px;font-size:14px;font-weight:600;
-    transition:.15s}
+    background:var(--panel);color:var(--text);padding:10px 16px;font-size:15px;font-weight:600;transition:.15s}
   button:hover{background:var(--panel2);border-color:var(--accent)}
   button.primary{background:linear-gradient(180deg,var(--accent),#5a3ee0);border-color:#6b4ff0}
   button.primary:hover{filter:brightness(1.12)}
   button.playmore{border-color:var(--accent);color:#d8d0ff;background:rgba(124,92,255,.16)}
   button.playmore:hover{background:rgba(124,92,255,.3);border-color:#a48cff}
-  .prompt{text-align:center;margin:18px 0 10px;font-size:15px;color:var(--muted)}
-  .prompt b{color:var(--text)}
 
-  .inputRow{display:flex;gap:8px;max-width:520px;margin:0 auto;position:relative}
-  #guess{flex:1;font-family:inherit;font-size:16px;padding:13px 14px;border-radius:10px;
+  /* ---------- two-column layout on wide screens ---------- */
+  .layout{display:grid;grid-template-columns:minmax(0,1fr);gap:34px;margin-top:22px}
+  .play{min-width:0}
+  .prompt{text-align:center;margin:0 0 12px;font-size:15px;color:var(--muted)}
+  .prompt b{color:var(--text)}
+  .inputRow{display:flex;gap:10px;max-width:640px;margin:0 auto;position:relative}
+  #guess{flex:1;font-family:inherit;font-size:17px;padding:14px 16px;border-radius:12px;
     border:1px solid var(--line);background:rgba(9,12,24,.75);color:var(--text);outline:none}
   #guess:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(124,92,255,.2)}
   #guess:disabled{opacity:.5}
+  #btnGo{padding:0 22px;font-size:16px}
   .ac{position:absolute;top:calc(100% + 6px);left:0;right:0;z-index:30;
-    background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden;
-    max-height:264px;overflow-y:auto;box-shadow:0 18px 40px rgba(0,0,0,.55)}
-  .ac div{display:flex;align-items:center;gap:10px;padding:8px 12px;font-size:15px}
+    background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;
+    max-height:300px;overflow-y:auto;box-shadow:0 18px 40px rgba(0,0,0,.55)}
+  .ac div{display:flex;align-items:center;gap:10px;padding:8px 12px;font-size:15px;cursor:pointer}
   .ac div:hover,.ac div.sel{background:var(--panel2)}
-  .ac img,.ac .ph{width:30px;height:30px;border-radius:6px;object-fit:cover;flex:none}
+  .ac img,.ac .ph{width:34px;height:34px;border-radius:7px;object-fit:cover;object-position:50% 12%;flex:none;font-size:11px}
 
-  .tableWrap{overflow-x:auto;margin-top:26px;padding-bottom:4px;
-    -webkit-mask-image:linear-gradient(90deg,#000 0,#000 94%,transparent 100%);
-            mask-image:linear-gradient(90deg,#000 0,#000 94%,transparent 100%)}
-  .tableWrap.fits{-webkit-mask-image:none;mask-image:none}
-  .swipe{display:none;text-align:center;color:var(--muted);font-size:11px;letter-spacing:2px;
-    text-transform:uppercase;margin-top:6px}
-  .swipe.on{display:block}
-  table{border-collapse:separate;border-spacing:6px;margin:0 auto;min-width:640px}
-  th{font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:var(--muted);font-weight:600;padding-bottom:2px}
+  .tableWrap{overflow-x:auto;margin-top:24px;padding-bottom:4px}
+  table{border-collapse:separate;border-spacing:8px;margin:0 auto}
+  th{font-size:12px;letter-spacing:1.8px;text-transform:uppercase;color:var(--muted);font-weight:600;padding-bottom:2px}
   td{padding:0}
-  .cell{width:96px;height:78px;border-radius:10px;display:flex;flex-direction:column;
-    align-items:center;justify-content:center;text-align:center;padding:5px;
-    font-size:12px;font-weight:600;line-height:1.2;border:1px solid rgba(255,255,255,.08);
+  .cell{width:var(--cw);height:var(--ch);border-radius:12px;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;text-align:center;padding:6px;
+    font-size:var(--cf);font-weight:600;line-height:1.2;border:1px solid rgba(255,255,255,.08);
     animation:flip .42s ease both}
   .g{background:var(--good)} .o{background:var(--warn)} .b{background:var(--bad)}
   .heroCell{background:var(--panel);padding:0;overflow:hidden;position:relative}
-  .heroCell img,.heroCell .ph{width:100%;height:100%;object-fit:cover;object-position:50% 14%;display:block}
-  .ph{display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;
+  .heroCell img,.heroCell .ph{width:100%;height:100%;object-fit:cover;object-position:50% 14%}
+  .heroCell img{display:block}
+  .ph{display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:700;
       background:linear-gradient(140deg,#3a2a7a,#1b2a5e);color:#cdd6ff}
-  .heroCell span{position:absolute;left:0;right:0;bottom:0;background:rgba(6,9,20,.82);
-    font-size:10px;padding:3px 2px;letter-spacing:.3px}
-  .arrow{font-size:17px;line-height:1}
+  .heroCell span{position:absolute;left:0;right:0;bottom:0;background:rgba(6,9,20,.84);
+    font-size:11px;padding:4px 2px;letter-spacing:.3px}
+  .arrow{font-size:19px;line-height:1}
   @keyframes flip{from{transform:rotateX(90deg);opacity:0}to{transform:rotateX(0);opacity:1}}
+  .swipe{display:none;text-align:center;color:var(--muted);font-size:11px;letter-spacing:2px;
+    text-transform:uppercase;margin-top:6px}
+  .swipe.on{display:block}
+  .empty{text-align:center;color:var(--muted);font-size:14px;margin-top:40px;opacity:.8}
 
-  .result{max-width:520px;margin:26px auto 0;background:var(--panel);border:1px solid var(--line);
-    border-radius:14px;padding:20px;text-align:center}
-  .result h2{margin:0 0 6px;font-size:22px;letter-spacing:1px}
-  .result .who{font-size:26px;font-weight:700;color:var(--accent2);letter-spacing:1px}
-  .statRow{display:flex;justify-content:center;gap:22px;margin:16px 0 14px;flex-wrap:wrap}
+  .result{max-width:640px;margin:24px auto 0;background:var(--panel);border:1px solid var(--line);
+    border-radius:16px;padding:20px;display:flex;gap:18px;align-items:center}
+  .result .pic{width:110px;height:140px;border-radius:12px;overflow:hidden;flex:none;background:var(--panel2)}
+  .result .pic img,.result .pic .ph{width:100%;height:100%;object-fit:cover;object-position:50% 12%}
+  .result .pic img{display:block}
+  .result .info{flex:1;text-align:center}
+  .result h2{margin:0 0 4px;font-size:20px;letter-spacing:1px;font-weight:600;color:var(--muted)}
+  .result .who{font-size:28px;font-weight:700;color:var(--accent2);letter-spacing:1px;margin-bottom:10px}
+  .result .btns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+  .statRow{display:flex;justify-content:center;gap:26px;margin:8px 0 14px;flex-wrap:wrap}
   .statRow div{min-width:60px}
-  .statRow b{display:block;font-size:22px}
+  .statRow b{display:block;font-size:24px}
   .statRow small{color:var(--muted);font-size:11px;letter-spacing:1px;text-transform:uppercase}
-  footer{text-align:center;color:var(--muted);font-size:13px;margin-top:34px;line-height:1.7}
-  footer b{color:var(--accent2)}
-  .fine{font-size:11px;opacity:.65;max-width:520px;margin:10px auto 0}
+
+  /* ---------- hero select ---------- */
+  .roster{min-width:0}
+  .rosterHead{width:100%;display:flex;align-items:center;gap:10px;
+    font-size:13px;letter-spacing:2px;text-transform:uppercase;padding:12px 16px;color:var(--muted)}
+  .rosterHead b{color:var(--text)}
+  .rosterHead i{font-style:normal;margin-left:auto;transition:.2s}
+  .rosterHead.closed i{transform:rotate(-90deg)}
+  .group{margin-top:16px}
+  .group h3{margin:0 0 10px;font-size:13px;letter-spacing:2.5px;text-transform:uppercase;font-weight:700;
+    display:flex;align-items:center;gap:10px;color:var(--rc)}
+  .group h3::before{content:"";width:4px;height:16px;border-radius:2px;background:var(--rc)}
+  .group h3 span{color:var(--muted);font-weight:600}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(86px,1fr));gap:9px}
+  .htile{display:flex;flex-direction:column;padding:0;border-radius:10px;overflow:hidden;
+    background:var(--panel2);border:1px solid var(--line);text-align:center;transition:.15s}
+  .htile .pic{aspect-ratio:4/5;width:100%;overflow:hidden;background:linear-gradient(160deg,#2b2466,#141c3d)}
+  .htile .pic img,.htile .pic .ph{width:100%;height:100%;object-fit:cover;object-position:50% 10%;transition:transform .2s}
+  .htile .pic img{display:block}
+  .htile .nm{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;line-height:1.15;
+    padding:6px 4px;min-height:34px;display:flex;align-items:center;justify-content:center;
+    background:rgba(6,9,20,.9);border-top:2px solid var(--rc)}
+  .htile:hover{transform:translateY(-3px);border-color:var(--rc);box-shadow:0 10px 24px rgba(0,0,0,.45)}
+  .htile:hover .pic img{transform:scale(1.06)}
+  .htile.used{filter:grayscale(1);opacity:.32}
+  .htile.used .nm{text-decoration:line-through}
+  .htile:disabled{cursor:default}
+  .htile:disabled:hover{transform:none;box-shadow:none;border-color:var(--line)}
+  .htile:disabled:hover .pic img{transform:none}
+  .g-van{--rc:var(--van)} .g-due{--rc:var(--due)} .g-str{--rc:var(--str)}
+
+  footer{text-align:center;color:var(--muted);font-size:12px;margin-top:40px;opacity:.65;line-height:1.7}
   .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:var(--accent);
     padding:10px 18px;border-radius:999px;font-weight:600;font-size:14px;opacity:0;
-    pointer-events:none;transition:.25s}
+    pointer-events:none;transition:.25s;z-index:50}
   .toast.show{opacity:1}
   dialog{border:1px solid var(--line);background:var(--panel);color:var(--text);border-radius:14px;
-    max-width:440px;padding:22px;font-family:inherit}
+    max-width:460px;padding:22px;font-family:inherit}
   dialog::backdrop{background:rgba(4,6,14,.72)}
   dialog h3{margin:0 0 10px}
   dialog ul{padding-left:18px;line-height:1.7;font-size:14px}
   .key{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-1px;margin-right:4px}
-.roster{max-width:860px;margin:36px auto 0}
-  .rosterHead{width:100%;display:flex;align-items:center;gap:10px;
-    font-size:12px;letter-spacing:2px;text-transform:uppercase;padding:12px 16px;color:var(--muted)}
-  .rosterHead i{margin-left:auto}
-  .rosterHead b{color:var(--text)}
-  .rosterHead i{font-style:normal;transition:.2s}
-  .rosterHead.closed i{transform:rotate(-90deg)}
-  .rosterBody{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:12px}
-  .rcol{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px}
-  .rcol h3{margin:0 0 8px;font-size:11px;letter-spacing:2px;text-transform:uppercase;
-    color:var(--accent2);display:flex;justify-content:space-between;font-weight:700}
-  .rcol h3 span{color:var(--muted)}
-  .chip{display:flex;align-items:center;gap:9px;width:100%;text-align:left;padding:4px 7px;margin:2px 0;
-    font-size:13px;font-weight:600;background:transparent;border:1px solid transparent;border-radius:8px}
-  .chip:hover{background:var(--panel2);border-color:var(--accent)}
-  .chip.used{opacity:.38;text-decoration:line-through}
-  .chip.used:hover{background:transparent;border-color:transparent}
-  .chipImg{width:28px;height:28px;border-radius:6px;object-fit:cover;object-position:50% 12%;flex:none}
-  .ph.chipImg{font-size:10px}
-  @media(max-width:700px){ .rosterBody{grid-template-columns:1fr} }
-  @media(max-width:600px){
-    .cell{width:74px;height:68px;font-size:11px}
-    table{min-width:520px;border-spacing:4px}
+
+  @media(min-width:1200px){
+    :root{--cw:124px; --ch:104px; --cf:14px}
+    .layout{grid-template-columns:minmax(0,860px) minmax(0,1fr);align-items:start}
+    .roster{position:sticky;top:16px;max-height:calc(100vh - 32px);overflow-y:auto;
+      padding-right:6px;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+    .rosterHead{position:sticky;top:0;z-index:5;background:var(--panel)}
+  }
+  @media(min-width:1600px){ :root{--cw:132px; --ch:110px} }
+  @media(max-width:640px){
+    :root{--cw:74px; --ch:68px; --cf:11px}
+    table{border-spacing:4px}
+    .grid{grid-template-columns:repeat(auto-fill,minmax(78px,1fr));gap:8px}
+    .result{flex-direction:column}
   }
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
-    <h1>RIVALS DAILY</h1>
+    <h1>RIVALS</h1>
     <div class="tag">Guess the hero</div>
   </header>
 
   <div class="bar">
     <button id="btnHow">How to play</button>
     <button id="btnStats">Stats</button>
-    <button id="btnMode" class="playmore">Free play &#9654;</button>
+    <button id="btnNew" class="playmore">New hero &#9654;</button>
   </div>
 
-  <div class="prompt" id="prompt"></div>
+  <main class="layout">
+    <section class="play">
+      <div class="prompt" id="prompt"></div>
+      <div class="inputRow">
+        <input id="guess" autocomplete="off" spellcheck="false" placeholder="Type a hero name...">
+        <button class="primary" id="btnGo">Guess</button>
+        <div class="ac" id="ac" hidden></div>
+      </div>
+      <div id="result"></div>
 
-  <div class="inputRow">
-    <input id="guess" autocomplete="off" spellcheck="false" placeholder="Type a hero name...">
-    <button class="primary" id="btnGo">Guess</button>
-    <div class="ac" id="ac" hidden></div>
-  </div>
+      <div class="tableWrap">
+        <table id="board" hidden>
+          <thead><tr><th>Hero</th><th>Gender</th><th>Role</th><th>Team</th><th>Origin</th><th>Year</th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+      <div class="swipe" id="swipe">swipe to see every column &rarr;</div>
+      <div class="empty" id="empty">Type a name or pick a hero from the list to make your first guess.</div>
+    </section>
 
-  <div class="tableWrap">
-    <table id="board" hidden>
-      <thead><tr><th>Hero</th><th>Gender</th><th>Role</th><th>Team</th><th>Origin</th><th>Year</th></tr></thead>
-      <tbody id="rows"></tbody>
-    </table>
-  </div>
+    <aside class="roster">
+      <button class="rosterHead" id="rosterToggle"><b>All heroes</b> <span id="rosterCount"></span> <i>&#9662;</i></button>
+      <div id="rosterBody"></div>
+    </aside>
+  </main>
 
-  <div class="swipe" id="swipe">swipe to see every column &rarr;</div>
-
-  <div id="result"></div>
-
-  <section class="roster">
-    <button class="rosterHead" id="rosterToggle"><b>All heroes</b> <span id="rosterCount"></span> <i>&#9662;</i></button>
-    <div class="rosterBody" id="rosterBody"></div>
-  </section>
-
-  <footer>
-    <div id="yesterday"></div>
-    <div class="fine">Unofficial fan project. Not affiliated with Marvel or NetEase. Hero art is linked from the Marvel Rivals community wiki.</div>
-  </footer>
+  <footer>Unofficial fan project. Not affiliated with Marvel or NetEase. Hero art is linked from the Marvel Rivals community wiki.</footer>
 </div>
 
 <div class="toast" id="toast"></div>
 
 <dialog id="dlgHow">
   <h3>How to play</h3>
-  <p style="font-size:14px;color:var(--muted);margin-top:0">Guess the hero. Every guess shows how close each attribute is.</p>
+  <p style="font-size:14px;color:var(--muted);margin-top:0">A random hero is picked. Guess who it is — every guess shows how close each attribute is.</p>
   <ul>
     <li><span class="key" style="background:var(--good)"></span><b>Green</b> — exact match.</li>
     <li><span class="key" style="background:var(--warn)"></span><b>Orange</b> — partly right. Some teams (or roles) overlap, but not all of them.</li>
     <li><span class="key" style="background:var(--bad)"></span><b>Red</b> — no match.</li>
     <li><b>↑ / ↓</b> on the year — the answer came out later / earlier.</li>
   </ul>
-  <p style="font-size:14px">One hero per day, the same one for everyone. Hit <b>Share</b> when you finish and paste the grid into Discord.</p>
+  <p style="font-size:14px">Type a name or click a hero in the list. Unlimited guesses, unlimited rounds — hit <b>New hero</b> any time.</p>
   <button class="primary" onclick="dlgHow.close()">Got it</button>
 </dialog>
 
@@ -201,25 +229,6 @@
 /* ---------- helpers ---------- */
 const $ = id => document.getElementById(id);
 const norm = s => s.toLowerCase().replace(/[^a-z0-9]/g,'');
-
-function hash(str){ let h=2166136261; for(let i=0;i<str.length;i++){h^=str.charCodeAt(i);h=Math.imul(h,16777619);} return h>>>0; }
-function rng(seed){ let s=seed>>>0; return ()=>{ s=(s*1664525+1013904223)>>>0; return s/4294967296; }; }
-
-/* Deterministic no-repeat rotation: shuffle the roster per cycle, walk it one hero a day. */
-const DAY_MS = 86400000;
-function dayIndex(d=new Date()){ return Math.floor(Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate())/DAY_MS); }
-const EPOCH = dayIndex(new Date(Date.UTC(2026,0,1)));   // puzzle #1 = 1 Jan 2026
-
-function heroForDay(di){
-  const n = HEROES.length;
-  const offset = di - EPOCH;
-  const cycle = Math.floor(offset / n);
-  const pos = ((offset % n) + n) % n;
-  const order = HEROES.map((h,i)=>i);
-  const rand = rng(hash('rivals-daily-cycle-' + cycle));
-  for(let i=order.length-1;i>0;i--){ const j=Math.floor(rand()*(i+1)); [order[i],order[j]]=[order[j],order[i]]; }
-  return HEROES[order[pos]];
-}
 
 /* ---------- portraits (linked from the community wiki, with graceful fallback) ---------- */
 /* Fandom serves images at /images/<h0>/<h0h1>/<Filename>, where h is md5 of the filename. */
@@ -325,84 +334,81 @@ function makeCell(cls, text, arrow){
 }
 
 /* ---------- state ---------- */
-const LS='rivalsDaily.v1';
+const LS='rivalsFree.v1';
 function loadStore(){ try{ return JSON.parse(localStorage.getItem(LS)) || {}; }catch(e){ return {}; } }
-function saveStore(o){ try{ localStorage.setItem(LS, JSON.stringify(o)); }catch(e){} }
+function saveStore(){ try{ localStorage.setItem(LS, JSON.stringify(store)); }catch(e){} }
 
 let store = loadStore();
-store.stats = store.stats || {played:0, streak:0, best:0, dist:{}, lastDay:null};
+store.stats  = store.stats  || {played:0, total:0, best:null, dist:{}};
+store.recent = store.recent || [];
 
-let freePlay=false, answer=null, guesses=[], done=false, today=dayIndex();
+let answer=null, guesses=[], done=false;
 
-function startDaily(){
-  freePlay=false; $('btnMode').innerHTML='Free play &#9654;'; $('btnMode').className='playmore';
-  answer = heroForDay(today);
-  const saved = store.day && store.day.d===today ? store.day : null;
-  guesses = saved ? saved.g.slice() : [];
-  done = saved ? saved.done : false;
-  render();
+/* random hero, avoiding the last several answers so repeats feel rare */
+function pickHero(){
+  const avoid = new Set(store.recent);
+  let pool = HEROES.filter(h=>!avoid.has(h.name));
+  if(!pool.length) pool = HEROES.slice();
+  return pool[Math.floor(Math.random()*pool.length)];
 }
-function startFree(){
-  freePlay=true; $('btnMode').textContent='Back to daily'; $('btnMode').className='';
-  answer = HEROES[Math.floor(Math.random()*HEROES.length)];
+function newRound(){
+  if(answer && !done && guesses.length) toast('It was '+answer.name);
+  answer = pickHero();
+  store.recent = [answer.name].concat(store.recent.filter(n=>n!==answer.name)).slice(0, Math.min(20, HEROES.length-1));
   guesses=[]; done=false;
-  render();
+  persist(); render();
+  $('guess').value=''; $('guess').focus();
 }
-
-function persist(){
-  if(freePlay) return;
-  store.day={d:today, g:guesses.slice(), done};
-  saveStore(store);
-}
-
+function persist(){ store.round={a:answer.name, g:guesses.slice(), done}; saveStore(); }
 function recordWin(){
-  const s=store.stats;
-  if(s.lastDay===today) return;
-  s.played++;
-  s.streak = (s.lastDay===today-1) ? s.streak+1 : 1;
-  s.best = Math.max(s.best, s.streak);
-  s.dist[guesses.length] = (s.dist[guesses.length]||0)+1;
-  s.lastDay = today;
-  saveStore(store);
+  const s=store.stats, n=guesses.length;
+  s.played++; s.total+=n;
+  s.best = (s.best===null) ? n : Math.min(s.best, n);
+  s.dist[n] = (s.dist[n]||0)+1;
+  saveStore();
 }
 
-/* ---------- hero roster ---------- */
-const ROLES=['Vanguard','Duelist','Strategist'];
+/* ---------- hero select ---------- */
+const ROLES=[['Vanguard','van'],['Duelist','due'],['Strategist','str']];
 let rosterBuilt=false;
 function buildRoster(){
   const body=$('rosterBody'); body.innerHTML='';
-  ROLES.forEach(role=>{
+  ROLES.forEach(([role,key])=>{
     const list=HEROES.filter(h=>h.roles.includes(role)).sort((a,b)=>a.name.localeCompare(b.name));
-    const col=document.createElement('div'); col.className='rcol';
+    const g=document.createElement('div'); g.className='group g-'+key;
     const h3=document.createElement('h3');
     h3.appendChild(document.createTextNode(role));
     const n=document.createElement('span'); n.textContent=list.length; h3.appendChild(n);
-    col.appendChild(h3);
+    g.appendChild(h3);
+    const grid=document.createElement('div'); grid.className='grid';
     list.forEach(hero=>{
-      const chip=document.createElement('button');
-      chip.className='chip'; chip.dataset.hero=hero.name; chip.title='Guess '+hero.name;
-      chip.appendChild(portrait(hero,'chipImg',220,30000));
-      const s=document.createElement('span'); s.textContent=hero.name; chip.appendChild(s);
-      chip.onclick=()=>submitGuess(hero.name);
-      col.appendChild(chip);
+      const t=document.createElement('button');
+      t.className='htile'; t.dataset.hero=hero.name; t.title='Guess '+hero.name;
+      const pic=document.createElement('div'); pic.className='pic';
+      pic.appendChild(portrait(hero,'',220,30000));
+      const nm=document.createElement('div'); nm.className='nm'; nm.textContent=hero.name;
+      t.appendChild(pic); t.appendChild(nm);
+      t.onclick=()=>submitGuess(hero.name);
+      grid.appendChild(t);
     });
-    body.appendChild(col);
+    g.appendChild(grid);
+    body.appendChild(g);
   });
-  $('rosterCount').textContent=HEROES.length+' total';
+  $('rosterCount').textContent=HEROES.length+' heroes';
   rosterBuilt=true;
 }
 function syncRoster(){
   if(!rosterBuilt) buildRoster();
-  document.querySelectorAll('.chip').forEach(c=>{
-    const used=guesses.includes(c.dataset.hero);
-    c.classList.toggle('used', used);
-    c.disabled = used || done;
+  document.querySelectorAll('.htile').forEach(t=>{
+    const used=guesses.includes(t.dataset.hero);
+    t.classList.toggle('used', used);
+    t.disabled = used || done;
   });
 }
 $('rosterToggle').onclick=()=>{
   const body=$('rosterBody'), btn=$('rosterToggle');
-  const open = body.hasAttribute('hidden');
-  if(open){ body.removeAttribute('hidden'); btn.classList.remove('closed'); }
+  const hidden = body.hasAttribute('hidden');
+  if(hidden){ body.removeAttribute('hidden'); btn.classList.remove('closed'); }
   else { body.setAttribute('hidden',''); btn.classList.add('closed'); }
 };
 
@@ -410,6 +416,7 @@ $('rosterToggle').onclick=()=>{
 function render(){
   const rows=$('rows'); rows.innerHTML='';
   $('board').hidden = guesses.length===0;
+  $('empty').hidden = guesses.length>0;
   guesses.slice().reverse().forEach(name=>{
     const h = HEROES.find(x=>x.name===name); if(!h) return;
     const tr=document.createElement('tr');
@@ -426,13 +433,12 @@ function render(){
     add(compareSet(h.teams, answer.teams), h.teams.join(', '));
     add(h.origin===answer.origin?'g':'b', h.origin);
     add(h.year===answer.year?'g':'b', h.year, h.year===answer.year?'':(answer.year>h.year?'↑':'↓'));
-
     rows.appendChild(tr);
   });
 
-  const p=$('prompt');
-  if(freePlay) p.innerHTML='<b>Free play</b> — random hero, guess as many times as you like.';
-  else p.innerHTML='Puzzle <b>#'+(today-EPOCH+1)+'</b> &middot; a new hero every day &middot; guesses so far: <b>'+guesses.length+'</b>';
+  $('prompt').innerHTML = done
+    ? 'Solved! Hit <b>Next hero</b> for another round.'
+    : 'Guess the hero &middot; unlimited guesses &middot; guesses this round: <b>'+guesses.length+'</b>';
 
   $('guess').disabled = done;
   $('btnGo').disabled = done;
@@ -441,13 +447,9 @@ function render(){
 
   const wrap=document.querySelector('.tableWrap');
   const over = guesses.length>0 && wrap.scrollWidth > wrap.clientWidth + 4;
-  wrap.classList.toggle('fits', !over);
   $('swipe').classList.toggle('on', over);
 
   syncRoster();
-
-  const y=heroForDay(today-1);
-  $('yesterday').innerHTML = freePlay ? '' : 'Yesterday&rsquo;s hero was <b>'+y.name.toUpperCase()+'</b>';
 }
 
 function emojiGrid(){
@@ -462,32 +464,27 @@ function emojiGrid(){
 
 function showResult(){
   const s=store.stats;
+  const avg = s.played ? (s.total/s.played).toFixed(1) : '–';
   const box=document.createElement('div'); box.className='result';
-  box.innerHTML='<h2>Solved in '+guesses.length+(guesses.length===1?' guess':' guesses')+'</h2>'+
-    '<div class="who">'+answer.name.toUpperCase()+'</div>'+
-    (freePlay?'':'<div class="statRow"><div><b>'+s.played+'</b><small>Played</small></div>'+
-      '<div><b>'+s.streak+'</b><small>Streak</small></div>'+
-      '<div><b>'+s.best+'</b><small>Best</small></div></div>');
-  const btns=document.createElement('div');
-  const share=document.createElement('button'); share.className='primary'; share.textContent='Share result';
-  share.onclick=doShare;
-  btns.appendChild(share);
-  const again=document.createElement('button');
-  again.className='playmore'; again.style.marginLeft='8px';
-  again.textContent = freePlay ? 'New hero' : 'Play another';
-  again.onclick=startFree;
-  btns.appendChild(again);
-  if(!freePlay){ const hint=document.createElement('div');
-    hint.style.cssText='margin-top:12px;font-size:12px;color:var(--muted)';
-    hint.textContent='No waiting \u2014 Free play gives you a new random hero as often as you like.';
-    box.appendChild(hint); }
-  box.appendChild(btns);
+  const pic=document.createElement('div'); pic.className='pic'; pic.appendChild(portrait(answer));
+  const info=document.createElement('div'); info.className='info';
+  info.innerHTML='<h2>Solved in '+guesses.length+(guesses.length===1?' guess':' guesses')+'</h2>'+
+    '<div class="who"></div>'+
+    '<div class="statRow"><div><b>'+s.played+'</b><small>Solved</small></div>'+
+    '<div><b>'+avg+'</b><small>Avg guesses</small></div>'+
+    '<div><b>'+(s.best===null?'–':s.best)+'</b><small>Best</small></div></div>';
+  info.querySelector('.who').textContent = answer.name.toUpperCase();
+  const btns=document.createElement('div'); btns.className='btns';
+  const nxt=document.createElement('button'); nxt.className='primary'; nxt.textContent='Next hero ▶'; nxt.onclick=newRound;
+  const share=document.createElement('button'); share.textContent='Share result'; share.onclick=doShare;
+  btns.appendChild(nxt); btns.appendChild(share);
+  info.appendChild(btns);
+  box.appendChild(pic); box.appendChild(info);
   $('result').appendChild(box);
 }
 
 function doShare(){
-  let txt = (freePlay ? 'Rivals Daily — free play' : 'Rivals Daily #'+(today-EPOCH+1)) +
-            ' — '+guesses.length+(guesses.length===1?' guess':' guesses')+'\n'+emojiGrid();
+  let txt = 'Rivals — '+answer.name+' in '+guesses.length+(guesses.length===1?' guess':' guesses')+'\n'+emojiGrid();
   if(location.protocol.startsWith('http')) txt += '\n'+location.href.split('?')[0];
   const fallback=()=>{ const ta=document.createElement('textarea'); ta.value=txt; document.body.appendChild(ta);
     ta.select(); try{document.execCommand('copy');}catch(e){} ta.remove(); toast('Copied — paste it in Discord'); };
@@ -497,7 +494,7 @@ function doShare(){
 }
 
 function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show');
-  clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),1900); }
+  clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),2200); }
 
 /* ---------- guessing ---------- */
 function submitGuess(name){
@@ -506,11 +503,11 @@ function submitGuess(name){
   if(!h){ toast('No hero by that name'); return; }
   if(guesses.includes(h.name)){ toast('Already guessed'); return; }
   guesses.push(h.name);
-  if(h.name===answer.name){ done=true; if(!freePlay) recordWin(); }
+  if(h.name===answer.name){ done=true; recordWin(); }
   persist();
   $('guess').value=''; hideAc();
   render();
-  if(done) toast('Nailed it');
+  if(done){ toast('Nailed it'); window.scrollTo({top:0,behavior:'smooth'}); }
 }
 
 /* ---------- autocomplete ---------- */
@@ -522,7 +519,7 @@ function showAc(){
   acItems = HEROES.filter(h=>norm(h.name).includes(q) && !guesses.includes(h.name)).slice(0,8);
   const box=$('ac'); box.innerHTML=''; acSel=-1;
   if(!acItems.length){ hideAc(); return; }
-  acItems.forEach((h,i)=>{
+  acItems.forEach(h=>{
     const d=document.createElement('div');
     d.appendChild(portrait(h));
     const sp=document.createElement('span'); sp.textContent=h.name; d.appendChild(sp);
@@ -547,25 +544,32 @@ $('guess').addEventListener('keydown', e=>{
 });
 $('btnGo').onclick=()=>submitGuess(acItems[0]?acItems[0].name:$('guess').value);
 $('btnHow').onclick=()=>dlgHow.showModal();
-$('btnMode').onclick=()=> freePlay ? startDaily() : startFree();
+$('btnNew').onclick=newRound;
 $('btnStats').onclick=()=>{
   const s=store.stats;
+  const avg = s.played ? (s.total/s.played).toFixed(1) : '–';
   const keys=Object.keys(s.dist).map(Number).sort((a,b)=>a-b);
   const max=Math.max(1,...keys.map(k=>s.dist[k]));
-  let bars = keys.length ? keys.map(k=>
+  const bars = keys.length ? keys.map(k=>
     '<div style="display:flex;align-items:center;gap:8px;margin:4px 0;font-size:13px">'+
-    '<span style="width:18px;color:var(--muted)">'+k+'</span>'+
+    '<span style="width:22px;color:var(--muted)">'+k+'</span>'+
     '<span style="background:var(--accent);height:18px;border-radius:4px;min-width:22px;padding:0 6px;'+
     'width:'+Math.round(s.dist[k]/max*80)+'%;display:flex;align-items:center;justify-content:flex-end;font-size:12px">'+s.dist[k]+'</span></div>'
-  ).join('') : '<p style="color:var(--muted);font-size:14px">No finished puzzles yet.</p>';
-  $('statBody').innerHTML='<div class="statRow"><div><b>'+s.played+'</b><small>Played</small></div>'+
-    '<div><b>'+s.streak+'</b><small>Streak</small></div><div><b>'+s.best+'</b><small>Best</small></div></div>'+
+  ).join('') : '<p style="color:var(--muted);font-size:14px">No rounds solved yet.</p>';
+  $('statBody').innerHTML='<div class="statRow"><div><b>'+s.played+'</b><small>Solved</small></div>'+
+    '<div><b>'+avg+'</b><small>Avg guesses</small></div><div><b>'+(s.best===null?'–':s.best)+'</b><small>Best</small></div></div>'+
     '<div style="font-size:11px;letter-spacing:1.4px;text-transform:uppercase;color:var(--muted);margin:10px 0 4px">Guesses to solve</div>'+bars;
   dlgStats.showModal();
 };
 
-startDaily();
-$('guess').focus();
+/* ---------- start: resume an unfinished round after a refresh, else a fresh hero ---------- */
+(function start(){
+  const r = store.round;
+  const h = r && HEROES.find(x=>x.name===r.a);
+  if(h){ answer=h; guesses=(r.g||[]).filter(n=>HEROES.some(x=>x.name===n)); done=!!r.done; render(); }
+  else newRound();
+  $('guess').focus();
+})();
 </script>
 </body>
 </html>
