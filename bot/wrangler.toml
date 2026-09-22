@@ -13,3 +13,7 @@ DISCORD_PUBLIC_KEY = "1a1f8e62a0a1c7c76795c6b9f15b9f31a65385dc33a5fa118b8a462088
 binding = "DB"
 database_name = "rivals-guess"
 database_id = "043921d6-71b7-4a0f-955e-a4176e82e94e"
+
+# Keep a log of every command (Cloudflare dashboard > Worker > Observability) for troubleshooting.
+[observability]
+enabled = true
