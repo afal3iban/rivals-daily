@@ -330,6 +330,7 @@ export default {
     const i = JSON.parse(body);
 
     if (i.type === 1) return json({ type: 1 });                    // Discord's endpoint check
+    console.log('interaction', i.type, i.data && (i.data.name || i.data.custom_id), 'channel', i.channel_id);
     await ensureSchema(env);
     try {
       if (i.type === 4) return await autocomplete(i, env);
