@@ -1,0 +1,15 @@
+# Cloudflare Worker config for the Rivals Guess Discord bot.
+name = "rivals-guess-bot"
+main = "src/index.js"
+compatibility_date = "2025-09-01"
+
+[vars]
+SITE_URL = "https://afal3iban.github.io/rivals-guess/"
+DISCORD_APPLICATION_ID = "1552058754890076212"
+DISCORD_PUBLIC_KEY = "1a1f8e62a0a1c7c76795c6b9f15b9f31a65385dc33a5fa118b8a46208855b09d"
+# DISCORD_TOKEN is a secret: add it in Cloudflare (Worker > Settings > Variables and Secrets), never in this file.
+
+[[d1_databases]]
+binding = "DB"
+database_name = "rivals-guess"
+database_id = "043921d6-71b7-4a0f-955e-a4176e82e94e"
