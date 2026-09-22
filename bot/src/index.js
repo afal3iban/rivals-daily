@@ -109,26 +109,6 @@ function rosterEmbeds(heroes, env) {
   });
 }
 
-// Up to 5 dropdowns (Discord's limit); a role with more than 25 heroes is split evenly.
-function pickMenus(heroes, stamp, skip = []) {
-  const rows = [];
-  for (const R of ROLES) {
-    const list = byRole(heroes, R.role).filter(h => !skip.includes(h.name));
-    if (!list.length) continue;
-    const parts = Math.ceil(list.length / 25), size = Math.ceil(list.length / parts);
-    for (let p = 0; p < parts; p++) {
-      const chunk = list.slice(p * size, (p + 1) * size);
-      const range = parts > 1 ? ` (${chunk[0].name} – ${chunk[chunk.length - 1].name})` : '';
-      rows.push({ type: 1, components: [{
-        type: 3, custom_id: `pick:${stamp}:${R.key}${p}`,
-        placeholder: `${R.emoji} ${R.role}s${range} — pick to guess`,
-        options: chunk.map(h => ({ label: h.name, value: h.name })),
-      }] });
-    }
-  }
-  return rows.slice(0, 5);
-}
-
 /* ---------------- database ---------------- */
 const SCHEMA = [
   `CREATE TABLE IF NOT EXISTS rounds (channel_id TEXT PRIMARY KEY, guild_id TEXT, round_id TEXT, hero TEXT,
@@ -199,16 +179,14 @@ async function cmdRivals(i, env) {
     .bind(channel, guild, roundId, hero.name, now, userName(i), JSON.stringify(recent)).run();
 
   const lines = [
-    `Everyone hunts **the same hero**. Use \`/guess\` — you get **${MAX_GUESSES} guesses**, and they're private.`,
+    `Everyone hunts **the same hero**. Type \`/guess\` and start typing a hero name — you get **${MAX_GUESSES} guesses**, and they're private.`,
     'Each guess shows 🟩 match · 🟧 partly · 🟥 no match · ⬆️⬇️ release year.',
   ];
   if (prev && prev.hero) lines.push(`\nLast round's hero was **${prev.hero}**` + (prev.solved ? ` — solved by ${prev.solved}.` : ' — nobody got it!'));
   if (env.SITE_URL) lines.push(`\nPractice solo: ${env.SITE_URL}`);
-  lines[0] = `Everyone hunts **the same hero**. Pick a hero from the menus below or use \`/guess\` — you get **${MAX_GUESSES} guesses**, and they're private.`;
   return reply({
     embeds: [{ title: '🦸 New Rivals round!', description: lines.join('\n'), color: COLOR.brand,
       footer: { text: `Started by ${userName(i)}` } }, ...rosterEmbeds(heroes, env)],
-    components: pickMenus(heroes, now),
   });
 }
 
@@ -217,22 +195,7 @@ async function cmdGuess(i, env, ctx) {
   return playGuess(i, env, ctx, opt && opt.value);
 }
 
-// A hero picked from one of the dropdowns. From the public round message -> new private board;
-// from someone's private board -> that board is updated in place.
-async function pickFromMenu(i, env, ctx) {
-  const [, stamp] = String(i.data.custom_id).split(':');
-  const channel = i.channel_id || (i.channel && i.channel.id);
-  const round = await env.DB.prepare('SELECT * FROM rounds WHERE channel_id=?').bind(channel).first();
-  if (!round || String(round.started_at) !== stamp) {
-    return ephemeral({ content: 'That menu belongs to an older round — use the menus on the newest `/rivals` message.' });
-  }
-  const res = await playGuess(i, env, ctx, (i.data.values || [])[0], true);
-  const fromPrivateBoard = i.message && (i.message.flags & EPHEMERAL);
-  if (fromPrivateBoard && res.board) return json({ type: 7, data: res.board });   // update the board in place
-  return res.board ? ephemeral(res.board) : res;
-}
-
-async function playGuess(i, env, ctx, heroName, wantBoard = false) {
+async function playGuess(i, env, ctx, heroName) {
   const heroes = await getHeroes(env);
   const channel = i.channel_id || (i.channel && i.channel.id), guild = i.guild_id || 'dm', uid = userId(i), name = userName(i);
   const round = await env.DB.prepare('SELECT * FROM rounds WHERE channel_id=?').bind(channel).first();
@@ -273,19 +236,18 @@ async function playGuess(i, env, ctx, heroName, wantBoard = false) {
     ctx.waitUntil(followUp(env, i.token, { embeds: [{ color: COLOR.win,
       description: `🏆 **${name}** solved it in **${guesses.length}/${MAX_GUESSES}** — ${ordinal(place)} to get it!\n${grid}` }] }));
     out = { embeds: [{ color: COLOR.win, title: `🎉 It's ${answer.name}! Solved in ${guesses.length}/${MAX_GUESSES}`,
-      thumbnail: { url: portraitUrl(answer.name) }, fields }], components: [] };
+      thumbnail: { url: portraitUrl(answer.name) }, fields }] };
   } else if (lost) {
     ctx.waitUntil(followUp(env, i.token, { embeds: [{ color: COLOR.lose,
       description: `💀 **${name}** ran out of guesses.\n${grid}` }] }));
     out = { embeds: [{ color: COLOR.lose, title: `Out of guesses — it was ${answer.name}`,
-      description: "Keep it quiet so the others can still play!", thumbnail: { url: portraitUrl(answer.name) }, fields }], components: [] };
+      description: "Keep it quiet so the others can still play!", thumbnail: { url: portraitUrl(answer.name) }, fields }] };
   } else {
     const left = MAX_GUESSES - guesses.length;
     out = { embeds: [{ color: COLOR.info, title: `Guess ${guesses.length}/${MAX_GUESSES} — ${left} left`,
-      description: 'Gender · Role · Team · Origin · Year\nPick your next hero below (heroes you tried are hidden).', fields }],
-      components: pickMenus(heroes, round.started_at, guesses) };
+      description: 'Gender · Role · Team · Origin · Year', fields }] };
   }
-  return wantBoard ? { board: out } : ephemeral(out);
+  return ephemeral(out);
 }
 
 async function cmdLeaderboard(i, env) {
@@ -343,7 +305,8 @@ export default {
     await ensureSchema(env);
     try {
       if (i.type === 4) return await autocomplete(i, env);
-      if (i.type === 3 && String(i.data.custom_id).startsWith('pick:')) return await pickFromMenu(i, env, ctx);
+      // menus from older round messages: point people back to the search
+      if (i.type === 3) return ephemeral({ content: 'Guess with `/guess` — start typing a hero name and pick it from the list.' });
       if (i.type === 2) {
         if (i.data.name === 'rivals') return await cmdRivals(i, env);
         if (i.data.name === 'guess') return await cmdGuess(i, env, ctx);
