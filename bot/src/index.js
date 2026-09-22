@@ -118,6 +118,7 @@ const SCHEMA = [
   `CREATE TABLE IF NOT EXISTS scores (guild_id TEXT, user_id TEXT, name TEXT, played INTEGER DEFAULT 0,
      wins INTEGER DEFAULT 0, total INTEGER DEFAULT 0, streak INTEGER DEFAULT 0, best INTEGER DEFAULT 0,
      PRIMARY KEY (guild_id, user_id))`,
+  `CREATE TABLE IF NOT EXISTS messages (channel_id TEXT, message_id TEXT, token TEXT, at INTEGER)`,
 ];
 let schemaReady = false;
 async function ensureSchema(env) {
@@ -148,12 +149,46 @@ async function verifyDiscord(request, body, publicKey) {
     return await crypto.subtle.verify('NODE-ED25519', key, hexToBytes(sig), data);
   }
 }
-async function followUp(env, token, data) {
+async function followUp(env, token, data, channel) {
   // public message in the channel after a private (ephemeral) reply
-  const r = await fetch(`https://discord.com/api/v10/webhooks/${env.DISCORD_APPLICATION_ID}/${token}`, {
+  const r = await fetch(`https://discord.com/api/v10/webhooks/${env.DISCORD_APPLICATION_ID}/${token}?wait=true`, {
     method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(data),
   });
-  if (!r.ok) console.log('follow-up failed', r.status, await r.text());
+  if (!r.ok) { console.log('follow-up failed', r.status, await r.text()); return; }
+  const msg = await r.json().catch(() => null);
+  if (msg && msg.id && channel) await remember(env, channel, msg.id, token);
+}
+
+/* ---------------- round clean-up: the bot's round messages are removed once the round is over ---------------- */
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+async function remember(env, channel, messageId, token) {
+  await env.DB.prepare('INSERT INTO messages (channel_id, message_id, token, at) VALUES (?,?,?,?)')
+    .bind(channel, messageId, token || '', Date.now()).run();
+}
+// After we answer an interaction, look up the id of that answer and remember it.
+async function rememberOriginal(env, token, channel) {
+  for (let k = 0; k < 6; k++) {
+    await sleep(700);
+    const r = await fetch(`https://discord.com/api/v10/webhooks/${env.DISCORD_APPLICATION_ID}/${token}/messages/@original`);
+    if (r.ok) { const m = await r.json(); if (m && m.id) return remember(env, channel, m.id, token); }
+  }
+  console.log('could not find the round message to remember');
+}
+// Takes this channel's remembered messages off the list now; returns { done } — the job deleting them from Discord.
+async function takeRoundMessages(env, channel) {
+  const { results } = await env.DB.prepare('SELECT * FROM messages WHERE channel_id=?').bind(channel).all();
+  await env.DB.prepare('DELETE FROM messages WHERE channel_id=?').bind(channel).run();
+  return { done: (async () => {
+    for (const m of results || []) {
+      // interaction tokens work for 15 minutes; after that the bot deletes its own message directly
+      const fresh = m.token && Date.now() - m.at < 14 * 60 * 1000;
+      const url = fresh
+        ? `https://discord.com/api/v10/webhooks/${env.DISCORD_APPLICATION_ID}/${m.token}/messages/${m.message_id}`
+        : `https://discord.com/api/v10/channels/${channel}/messages/${m.message_id}`;
+      const r = await fetch(url, { method: 'DELETE', headers: fresh ? {} : { authorization: `Bot ${env.DISCORD_TOKEN}` } });
+      if (!r.ok && r.status !== 404) console.log('delete failed', r.status, await r.text());
+    }
+  })() };
 }
 
 /* ---------------- commands ---------------- */
@@ -163,9 +198,11 @@ export const COMMANDS = [
     options: [{ type: 3, name: 'hero', description: 'Hero name', required: true, autocomplete: true }] },
   { name: 'leaderboard', type: 1, description: 'Top Rivals Guess players in this server' },
   { name: 'endgame', type: 1, description: 'End the current round and reveal the hero' },
+  { name: 'setup', type: 1, description: 'Post the fixed hero roster (pictures + names) in this channel',
+    default_member_permissions: '32' },   // only people who can manage the server see it
 ];
 
-async function cmdRivals(i, env) {
+async function cmdRivals(i, env, ctx) {
   const heroes = await getHeroes(env);
   const channel = i.channel_id || (i.channel && i.channel.id), guild = i.guild_id || 'dm';
   const prev = await env.DB.prepare('SELECT * FROM rounds WHERE channel_id=?').bind(channel).first();
@@ -179,15 +216,18 @@ async function cmdRivals(i, env) {
       hero=excluded.hero, started_at=excluded.started_at, started_by=excluded.started_by, solved=0, recent=excluded.recent`)
     .bind(channel, guild, roundId, hero.name, now, userName(i), JSON.stringify(recent)).run();
 
+  ctx.waitUntil((await takeRoundMessages(env, channel)).done);      // clear the previous round's messages
+  ctx.waitUntil(rememberOriginal(env, i.token, channel));   // this round's message gets cleared next time
   const lines = [
     `Everyone hunts **the same hero**. Type \`/guess\` and start typing a hero name — you get **${MAX_GUESSES} guesses**, and they're private.`,
     'Each guess shows 🟩 match · 🟧 partly · 🟥 no match · ⬆️⬇️ release year.',
+    'All heroes are in the 📌 pinned roster message.',
   ];
   if (prev && prev.hero) lines.push(`\nLast round's hero was **${prev.hero}**` + (prev.solved ? ` — solved by ${prev.solved}.` : ' — nobody got it!'));
   if (env.SITE_URL) lines.push(`\nPractice solo: ${env.SITE_URL}`);
   return reply({
     embeds: [{ title: '🦸 New Rivals round!', description: lines.join('\n'), color: COLOR.brand,
-      footer: { text: `Started by ${userName(i)}` } }, ...rosterEmbeds(heroes, env)],
+      footer: { text: `Started by ${userName(i)}` } }],
   });
 }
 
@@ -235,12 +275,12 @@ async function playGuess(i, env, ctx, heroName) {
   let out;
   if (won) {
     ctx.waitUntil(followUp(env, i.token, { embeds: [{ color: COLOR.win,
-      description: `🏆 **${name}** solved it in **${guesses.length}/${MAX_GUESSES}** — ${ordinal(place)} to get it!\n${grid}` }] }));
+      description: `🏆 **${name}** solved it in **${guesses.length}/${MAX_GUESSES}** — ${ordinal(place)} to get it!\n${grid}` }] }, channel));
     out = { embeds: [{ color: COLOR.win, title: `🎉 It's ${answer.name}! Solved in ${guesses.length}/${MAX_GUESSES}`,
       thumbnail: { url: portraitUrl(answer.name) }, fields }] };
   } else if (lost) {
     ctx.waitUntil(followUp(env, i.token, { embeds: [{ color: COLOR.lose,
-      description: `💀 **${name}** ran out of guesses.\n${grid}` }] }));
+      description: `💀 **${name}** ran out of guesses.\n${grid}` }] }, channel));
     out = { embeds: [{ color: COLOR.lose, title: `Out of guesses — it was ${answer.name}`,
       description: "Keep it quiet so the others can still play!", thumbnail: { url: portraitUrl(answer.name) }, fields }] };
   } else {
@@ -252,7 +292,7 @@ async function playGuess(i, env, ctx, heroName) {
 }
 
 // Ends the round for everyone: reveals the hero and how everybody did. Unfinished players aren't penalised.
-async function cmdEndGame(i, env) {
+async function cmdEndGame(i, env, ctx) {
   const channel = i.channel_id || (i.channel && i.channel.id);
   const round = await env.DB.prepare('SELECT * FROM rounds WHERE channel_id=?').bind(channel).first();
   if (!round || !round.hero) return ephemeral({ content: 'There is no round running in this channel. Start one with `/rivals`.' });
@@ -270,12 +310,24 @@ async function cmdEndGame(i, env) {
   ];
   // clear the hero (keeps the recent-heroes list so the next round still avoids repeats)
   await env.DB.prepare("UPDATE rounds SET hero='' WHERE channel_id=? AND round_id=?").bind(channel, round.round_id).run();
+  ctx.waitUntil((await takeRoundMessages(env, channel)).done);      // remove this round's messages
+  ctx.waitUntil(rememberOriginal(env, i.token, channel));   // the result stays until the next round starts
   return reply({ embeds: [{
     color: COLOR.lose, title: `🏁 Round over — the hero was ${round.hero}!`,
     thumbnail: { url: portraitUrl(round.hero) },
     description: (lines.length ? lines.join('\n') : 'Nobody guessed this round.') + '\n\nStart a new round with `/rivals`.',
     footer: { text: `Ended by ${userName(i)}` },
   }], allowed_mentions: { parse: [] } });
+}
+
+// The fixed roster message: pictures + names of every hero, posted once (e.g. in #general) and pinned.
+async function cmdSetup(i, env) {
+  const heroes = await getHeroes(env);
+  return reply({ embeds: [
+    { color: COLOR.brand, title: '🦸 Rivals Guess — hero roster',
+      description: 'Guess the hero everyone is hunting!\n`/rivals` start a round · `/guess` make a guess (7 per round) · `/endgame` end the round · `/leaderboard` scores' },
+    ...rosterEmbeds(heroes, env),
+  ] });
 }
 
 async function cmdLeaderboard(i, env) {
@@ -337,10 +389,11 @@ export default {
       // menus from older round messages: point people back to the search
       if (i.type === 3) return ephemeral({ content: 'Guess with `/guess` — start typing a hero name and pick it from the list.' });
       if (i.type === 2) {
-        if (i.data.name === 'rivals') return await cmdRivals(i, env);
+        if (i.data.name === 'rivals') return await cmdRivals(i, env, ctx);
         if (i.data.name === 'guess') return await cmdGuess(i, env, ctx);
         if (i.data.name === 'leaderboard') return await cmdLeaderboard(i, env);
-        if (i.data.name === 'endgame') return await cmdEndGame(i, env);
+        if (i.data.name === 'endgame') return await cmdEndGame(i, env, ctx);
+        if (i.data.name === 'setup') return await cmdSetup(i, env);
       }
       return ephemeral({ content: 'Unknown command.' });
     } catch (e) {
