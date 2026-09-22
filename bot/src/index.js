@@ -7,6 +7,13 @@ import { HEROES as FALLBACK_HEROES } from './heroes.js';
 const MAX_GUESSES = 7;
 const EPHEMERAL = 64;
 const COLOR = { brand: 0x7c5cff, win: 0x25a55f, lose: 0xa8324a, info: 0x00d4ff };
+// Roster pictures are drawn by .github/workflows/roster.yml from bot/roster/index.html.
+const ROSTER_URL = 'https://raw.githubusercontent.com/afal3iban/rivals-guess/main/bot/roster/';
+const ROLES = [
+  { role: 'Vanguard', key: 'v', file: 'vanguard', emoji: '🛡️', color: 0x4aa3ff },
+  { role: 'Duelist', key: 'd', file: 'duelist', emoji: '⚔️', color: 0xff5a6e },
+  { role: 'Strategist', key: 's', file: 'strategist', emoji: '💚', color: 0x3fd18f },
+];
 
 /* ---------------- heroes: loaded from the website so there is one roster to maintain ---------------- */
 let heroCache = { at: 0, list: null };
@@ -86,6 +93,42 @@ function md5(str) {
   return hex(a) + hex(b) + hex(c) + hex(d);
 }
 
+/* ---------------- roster pictures + pick menus ---------------- */
+const byRole = (heroes, role) => heroes.filter(h => h.roles.includes(role)).sort((a, b) => a.name.localeCompare(b.name));
+
+function rosterEmbeds(heroes, env) {
+  const base = (env.ROSTER_URL || ROSTER_URL).replace(/\/?$/, '/');
+  return ROLES.map(R => {
+    const list = byRole(heroes, R.role);
+    return {
+      color: R.color,
+      title: `${R.emoji} ${R.role}s (${list.length})`,
+      description: list.map(h => h.name).join(' · '),          // plain text so names are easy to copy
+      image: { url: `${base}${R.file}.jpg?v=${md5(list.map(h => h.name).join('|')).slice(0, 8)}` },
+    };
+  });
+}
+
+// Up to 5 dropdowns (Discord's limit); a role with more than 25 heroes is split evenly.
+function pickMenus(heroes, stamp, skip = []) {
+  const rows = [];
+  for (const R of ROLES) {
+    const list = byRole(heroes, R.role).filter(h => !skip.includes(h.name));
+    if (!list.length) continue;
+    const parts = Math.ceil(list.length / 25), size = Math.ceil(list.length / parts);
+    for (let p = 0; p < parts; p++) {
+      const chunk = list.slice(p * size, (p + 1) * size);
+      const range = parts > 1 ? ` (${chunk[0].name} – ${chunk[chunk.length - 1].name})` : '';
+      rows.push({ type: 1, components: [{
+        type: 3, custom_id: `pick:${stamp}:${R.key}${p}`,
+        placeholder: `${R.emoji} ${R.role}s${range} — pick to guess`,
+        options: chunk.map(h => ({ label: h.name, value: h.name })),
+      }] });
+    }
+  }
+  return rows.slice(0, 5);
+}
+
 /* ---------------- database ---------------- */
 const SCHEMA = [
   `CREATE TABLE IF NOT EXISTS rounds (channel_id TEXT PRIMARY KEY, guild_id TEXT, round_id TEXT, hero TEXT,
@@ -161,19 +204,42 @@ async function cmdRivals(i, env) {
   ];
   if (prev && prev.hero) lines.push(`\nLast round's hero was **${prev.hero}**` + (prev.solved ? ` — solved by ${prev.solved}.` : ' — nobody got it!'));
   if (env.SITE_URL) lines.push(`\nPractice solo: ${env.SITE_URL}`);
-  return reply({ embeds: [{ title: '🦸 New Rivals round!', description: lines.join('\n'), color: COLOR.brand,
-    footer: { text: `Started by ${userName(i)}` } }] });
+  lines[0] = `Everyone hunts **the same hero**. Pick a hero from the menus below or use \`/guess\` — you get **${MAX_GUESSES} guesses**, and they're private.`;
+  return reply({
+    embeds: [{ title: '🦸 New Rivals round!', description: lines.join('\n'), color: COLOR.brand,
+      footer: { text: `Started by ${userName(i)}` } }, ...rosterEmbeds(heroes, env)],
+    components: pickMenus(heroes, now),
+  });
 }
 
 async function cmdGuess(i, env, ctx) {
+  const opt = (i.data.options || []).find(o => o.name === 'hero');
+  return playGuess(i, env, ctx, opt && opt.value);
+}
+
+// A hero picked from one of the dropdowns. From the public round message -> new private board;
+// from someone's private board -> that board is updated in place.
+async function pickFromMenu(i, env, ctx) {
+  const [, stamp] = String(i.data.custom_id).split(':');
+  const channel = i.channel_id || (i.channel && i.channel.id);
+  const round = await env.DB.prepare('SELECT * FROM rounds WHERE channel_id=?').bind(channel).first();
+  if (!round || String(round.started_at) !== stamp) {
+    return ephemeral({ content: 'That menu belongs to an older round — use the menus on the newest `/rivals` message.' });
+  }
+  const res = await playGuess(i, env, ctx, (i.data.values || [])[0], true);
+  const fromPrivateBoard = i.message && (i.message.flags & EPHEMERAL);
+  if (fromPrivateBoard && res.board) return json({ type: 7, data: res.board });   // update the board in place
+  return res.board ? ephemeral(res.board) : res;
+}
+
+async function playGuess(i, env, ctx, heroName, wantBoard = false) {
   const heroes = await getHeroes(env);
   const channel = i.channel_id || (i.channel && i.channel.id), guild = i.guild_id || 'dm', uid = userId(i), name = userName(i);
-  const opt = (i.data.options || []).find(o => o.name === 'hero');
   const round = await env.DB.prepare('SELECT * FROM rounds WHERE channel_id=?').bind(channel).first();
   if (!round) return ephemeral({ content: 'No round running in this channel yet — start one with `/rivals`.' });
   const answer = findHero(heroes, round.hero);
-  const hero = findHero(heroes, opt && opt.value);
-  if (!hero) return ephemeral({ content: `I don't know a hero called **${(opt && opt.value) || '?'}**. Pick one from the list as you type.` });
+  const hero = findHero(heroes, heroName);
+  if (!hero) return ephemeral({ content: `I don't know a hero called **${heroName || '?'}**. Pick one from the list as you type.` });
 
   const att = await env.DB.prepare('SELECT * FROM attempts WHERE round_id=? AND user_id=?').bind(round.round_id, uid).first();
   let guesses = []; try { guesses = JSON.parse((att && att.guesses) || '[]'); } catch (e) {}
@@ -202,21 +268,24 @@ async function cmdGuess(i, env, ctx) {
   const grid = board.map(h => emojiRow(h, answer)).join('\n');
   const fields = board.map((h, k) => ({ name: `${k + 1}. ${h.name}`, value: detailLine(h, answer) }));
 
+  let out;
   if (won) {
     ctx.waitUntil(followUp(env, i.token, { embeds: [{ color: COLOR.win,
       description: `🏆 **${name}** solved it in **${guesses.length}/${MAX_GUESSES}** — ${ordinal(place)} to get it!\n${grid}` }] }));
-    return ephemeral({ embeds: [{ color: COLOR.win, title: `🎉 It's ${answer.name}! Solved in ${guesses.length}/${MAX_GUESSES}`,
-      thumbnail: { url: portraitUrl(answer.name) }, fields }] });
-  }
-  if (lost) {
+    out = { embeds: [{ color: COLOR.win, title: `🎉 It's ${answer.name}! Solved in ${guesses.length}/${MAX_GUESSES}`,
+      thumbnail: { url: portraitUrl(answer.name) }, fields }], components: [] };
+  } else if (lost) {
     ctx.waitUntil(followUp(env, i.token, { embeds: [{ color: COLOR.lose,
       description: `💀 **${name}** ran out of guesses.\n${grid}` }] }));
-    return ephemeral({ embeds: [{ color: COLOR.lose, title: `Out of guesses — it was ${answer.name}`,
-      description: "Keep it quiet so the others can still play!", thumbnail: { url: portraitUrl(answer.name) }, fields }] });
+    out = { embeds: [{ color: COLOR.lose, title: `Out of guesses — it was ${answer.name}`,
+      description: "Keep it quiet so the others can still play!", thumbnail: { url: portraitUrl(answer.name) }, fields }], components: [] };
+  } else {
+    const left = MAX_GUESSES - guesses.length;
+    out = { embeds: [{ color: COLOR.info, title: `Guess ${guesses.length}/${MAX_GUESSES} — ${left} left`,
+      description: 'Gender · Role · Team · Origin · Year\nPick your next hero below (heroes you tried are hidden).', fields }],
+      components: pickMenus(heroes, round.started_at, guesses) };
   }
-  const left = MAX_GUESSES - guesses.length;
-  return ephemeral({ embeds: [{ color: COLOR.info, title: `Guess ${guesses.length}/${MAX_GUESSES} — ${left} left`,
-    description: 'Gender · Role · Team · Origin · Year', fields }] });
+  return wantBoard ? { board: out } : ephemeral(out);
 }
 
 async function cmdLeaderboard(i, env) {
@@ -274,6 +343,7 @@ export default {
     await ensureSchema(env);
     try {
       if (i.type === 4) return await autocomplete(i, env);
+      if (i.type === 3 && String(i.data.custom_id).startsWith('pick:')) return await pickFromMenu(i, env, ctx);
       if (i.type === 2) {
         if (i.data.name === 'rivals') return await cmdRivals(i, env);
         if (i.data.name === 'guess') return await cmdGuess(i, env, ctx);
