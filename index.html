@@ -295,8 +295,15 @@ function portrait(hero, cls, w, waitMs){
     ph.textContent = initials(hero.name);
     if(img.parentNode) img.replaceWith(ph);
   };
-  img.onerror = () => { if(dead) return; i++; (i < urls.length) ? img.src = urls[i] : giveUp(); };
-  img.onload = () => { dead = true; };
+  const next = () => { if(dead) return; i++; (i < urls.length) ? img.src = urls[i] : giveUp(); };
+  img.onerror = next;
+  img.onload = () => {
+    if(dead) return;
+    /* the wiki answers a missing file with a wide grey placeholder (ratio ~1.75)
+       instead of a 404, so judge it by shape and move to the next candidate. */
+    if(img.naturalWidth / img.naturalHeight > 1.4){ next(); return; }
+    dead = true;
+  };
   setTimeout(() => { if(!img.complete || !img.naturalWidth) giveUp(); }, waitMs || 15000);
   img.src = urls[0];
   return img;
