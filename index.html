@@ -44,6 +44,8 @@
   button:hover{background:var(--panel2);border-color:var(--accent)}
   button.primary{background:linear-gradient(180deg,var(--accent),#5a3ee0);border-color:#6b4ff0}
   button.primary:hover{filter:brightness(1.12)}
+  button.playmore{border-color:var(--accent);color:#d8d0ff;background:rgba(124,92,255,.16)}
+  button.playmore:hover{background:rgba(124,92,255,.3);border-color:#a48cff}
   .prompt{text-align:center;margin:18px 0 10px;font-size:15px;color:var(--muted)}
   .prompt b{color:var(--text)}
 
@@ -120,7 +122,7 @@
   <div class="bar">
     <button id="btnHow">How to play</button>
     <button id="btnStats">Stats</button>
-    <button id="btnMode">Free play</button>
+    <button id="btnMode" class="playmore">Free play &#9654;</button>
   </div>
 
   <div class="prompt" id="prompt"></div>
@@ -300,7 +302,7 @@ store.stats = store.stats || {played:0, streak:0, best:0, dist:{}, lastDay:null}
 let freePlay=false, answer=null, guesses=[], done=false, today=dayIndex();
 
 function startDaily(){
-  freePlay=false; $('btnMode').textContent='Free play';
+  freePlay=false; $('btnMode').innerHTML='Free play &#9654;'; $('btnMode').className='playmore';
   answer = heroForDay(today);
   const saved = store.day && store.day.d===today ? store.day : null;
   guesses = saved ? saved.g.slice() : [];
@@ -308,7 +310,7 @@ function startDaily(){
   render();
 }
 function startFree(){
-  freePlay=true; $('btnMode').textContent='Back to daily';
+  freePlay=true; $('btnMode').textContent='Back to daily'; $('btnMode').className='';
   answer = HEROES[Math.floor(Math.random()*HEROES.length)];
   guesses=[]; done=false;
   render();
@@ -395,8 +397,15 @@ function showResult(){
   const share=document.createElement('button'); share.className='primary'; share.textContent='Share result';
   share.onclick=doShare;
   btns.appendChild(share);
-  if(freePlay){ const again=document.createElement('button'); again.textContent='New hero';
-    again.style.marginLeft='8px'; again.onclick=startFree; btns.appendChild(again); }
+  const again=document.createElement('button');
+  again.className='playmore'; again.style.marginLeft='8px';
+  again.textContent = freePlay ? 'New hero' : 'Play another';
+  again.onclick=startFree;
+  btns.appendChild(again);
+  if(!freePlay){ const hint=document.createElement('div');
+    hint.style.cssText='margin-top:12px;font-size:12px;color:var(--muted)';
+    hint.textContent='No waiting \u2014 Free play gives you a new random hero as often as you like.';
+    box.appendChild(hint); }
   box.appendChild(btns);
   $('result').appendChild(box);
 }
