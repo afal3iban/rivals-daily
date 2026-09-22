@@ -12,131 +12,139 @@
 <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg:#090c18; --panel:#161f3d; --panel2:#1d2850;
+    --bg:#090c18; --panel:#121a35; --panel2:#1d2850;
     --line:#2b3768; --text:#eef1ff; --muted:#93a0cc;
     --accent:#7c5cff; --accent2:#00d4ff;
     --good:#25a55f; --warn:#d68a20; --bad:#a8324a;
     --van:#4aa3ff; --due:#ff5a6e; --str:#3fd18f;
-    --cw:108px; --ch:88px; --cf:13px;
+    --ch:96px; --cf:14px; --cols:6; --nfs:11px;
   }
   *{box-sizing:border-box}
+  html,body{height:100%}
   body{
-    margin:0; padding:0 20px 64px;
-    font-family:'Chakra Petch',system-ui,-apple-system,sans-serif;
-    color:var(--text);
+    margin:0; font-family:'Chakra Petch',system-ui,-apple-system,sans-serif; color:var(--text);
     background:
-      radial-gradient(1100px 600px at 12% -8%, #2a1b5e 0%, transparent 60%),
-      radial-gradient(1000px 600px at 92% -4%, #0d3b57 0%, transparent 55%),
+      radial-gradient(1100px 600px at 10% -10%, #2a1b5e 0%, transparent 60%),
+      radial-gradient(1000px 600px at 95% -6%, #0d3b57 0%, transparent 55%),
       var(--bg);
-    min-height:100vh;
   }
-  .wrap{max-width:1500px;margin:0 auto}
-  header{text-align:center;padding:26px 0 4px}
-  h1{
-    margin:0; font-size:clamp(40px,7vw,78px); font-weight:700; letter-spacing:6px;
+  .app{max-width:1840px;margin:0 auto;padding:12px 20px 8px;display:flex;flex-direction:column;gap:12px}
+
+  /* ---------- top bar ---------- */
+  .top{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+  .brand{display:flex;align-items:baseline;gap:14px}
+  h1{margin:0;font-size:40px;line-height:1;font-weight:700;letter-spacing:6px;
     background:linear-gradient(180deg,#fff 40%,#9db4ff 100%);
-    -webkit-background-clip:text; background-clip:text; color:transparent;
-    text-shadow:0 0 34px rgba(124,92,255,.35);
-  }
-  .tag{color:var(--muted);letter-spacing:4px;font-size:13px;text-transform:uppercase;margin-top:2px}
-  .bar{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:18px 0 4px}
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    text-shadow:0 0 28px rgba(124,92,255,.35)}
+  .tag{color:var(--muted);letter-spacing:3px;font-size:12px;text-transform:uppercase}
+  .bar{display:flex;gap:8px;flex-wrap:wrap}
   button{font-family:inherit;cursor:pointer;border-radius:10px;border:1px solid var(--line);
-    background:var(--panel);color:var(--text);padding:10px 16px;font-size:15px;font-weight:600;transition:.15s}
+    background:var(--panel);color:var(--text);padding:9px 15px;font-size:14px;font-weight:600;transition:.15s}
   button:hover{background:var(--panel2);border-color:var(--accent)}
   button.primary{background:linear-gradient(180deg,var(--accent),#5a3ee0);border-color:#6b4ff0}
   button.primary:hover{filter:brightness(1.12)}
   button.playmore{border-color:var(--accent);color:#d8d0ff;background:rgba(124,92,255,.16)}
   button.playmore:hover{background:rgba(124,92,255,.3);border-color:#a48cff}
 
-  /* ---------- two-column layout on wide screens ---------- */
-  .layout{display:grid;grid-template-columns:minmax(0,1fr);gap:34px;margin-top:22px}
-  .play{min-width:0}
-  .prompt{text-align:center;margin:0 0 12px;font-size:15px;color:var(--muted)}
-  .prompt b{color:var(--text)}
-  .inputRow{display:flex;gap:10px;max-width:640px;margin:0 auto;position:relative}
-  #guess{flex:1;font-family:inherit;font-size:17px;padding:14px 16px;border-radius:12px;
-    border:1px solid var(--line);background:rgba(9,12,24,.75);color:var(--text);outline:none}
+  /* ---------- panels ---------- */
+  .layout{display:grid;grid-template-columns:minmax(0,1fr);gap:18px}
+  .panel{background:rgba(18,26,53,.55);border:1px solid var(--line);border-radius:16px;padding:14px;
+    display:flex;flex-direction:column;min-width:0}
+  .play{gap:10px}
+
+  .inputRow{display:flex;gap:10px;position:relative}
+  #guess{flex:1;min-width:0;font-family:inherit;font-size:16px;padding:12px 14px;border-radius:12px;
+    border:1px solid var(--line);background:rgba(9,12,24,.8);color:var(--text);outline:none}
   #guess:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(124,92,255,.2)}
   #guess:disabled{opacity:.5}
-  #btnGo{padding:0 22px;font-size:16px}
+  #btnGo{padding:0 22px;font-size:15px}
   .ac{position:absolute;top:calc(100% + 6px);left:0;right:0;z-index:30;
     background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;
-    max-height:300px;overflow-y:auto;box-shadow:0 18px 40px rgba(0,0,0,.55)}
+    max-height:320px;overflow-y:auto;box-shadow:0 18px 40px rgba(0,0,0,.6)}
   .ac div{display:flex;align-items:center;gap:10px;padding:8px 12px;font-size:15px;cursor:pointer}
   .ac div:hover,.ac div.sel{background:var(--panel2)}
   .ac img,.ac .ph{width:34px;height:34px;border-radius:7px;object-fit:cover;object-position:50% 12%;flex:none;font-size:11px}
+  .prompt{font-size:13px;color:var(--muted);text-align:center}
+  .prompt b{color:var(--text)}
 
-  .tableWrap{overflow-x:auto;margin-top:24px;padding-bottom:4px}
-  table{border-collapse:separate;border-spacing:8px;margin:0 auto}
-  th{font-size:12px;letter-spacing:1.8px;text-transform:uppercase;color:var(--muted);font-weight:600;padding-bottom:2px}
-  td{padding:0}
-  .cell{width:var(--cw);height:var(--ch);border-radius:12px;display:flex;flex-direction:column;
-    align-items:center;justify-content:center;text-align:center;padding:6px;
-    font-size:var(--cf);font-weight:600;line-height:1.2;border:1px solid rgba(255,255,255,.08);
-    animation:flip .42s ease both}
-  .g{background:var(--good)} .o{background:var(--warn)} .b{background:var(--bad)}
-  .heroCell{background:var(--panel);padding:0;overflow:hidden;position:relative}
-  .heroCell img,.heroCell .ph{width:100%;height:100%;object-fit:cover;object-position:50% 14%}
-  .heroCell img{display:block}
-  .ph{display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:700;
-      background:linear-gradient(140deg,#3a2a7a,#1b2a5e);color:#cdd6ff}
-  .heroCell span{position:absolute;left:0;right:0;bottom:0;background:rgba(6,9,20,.84);
-    font-size:11px;padding:4px 2px;letter-spacing:.3px}
-  .arrow{font-size:19px;line-height:1}
-  @keyframes flip{from{transform:rotateX(90deg);opacity:0}to{transform:rotateX(0);opacity:1}}
-  .swipe{display:none;text-align:center;color:var(--muted);font-size:11px;letter-spacing:2px;
-    text-transform:uppercase;margin-top:6px}
-  .swipe.on{display:block}
-  .empty{text-align:center;color:var(--muted);font-size:14px;margin-top:40px;opacity:.8}
-
-  .result{max-width:640px;margin:24px auto 0;background:var(--panel);border:1px solid var(--line);
-    border-radius:16px;padding:20px;display:flex;gap:18px;align-items:center}
-  .result .pic{width:110px;height:140px;border-radius:12px;overflow:hidden;flex:none;background:var(--panel2)}
+  /* ---------- result ---------- */
+  .result{display:flex;gap:14px;align-items:center;background:linear-gradient(90deg,rgba(0,212,255,.10),rgba(124,92,255,.10));
+    border:1px solid rgba(0,212,255,.35);border-radius:14px;padding:10px 12px}
+  .result .pic{width:64px;height:80px;border-radius:10px;overflow:hidden;flex:none;background:var(--panel2)}
   .result .pic img,.result .pic .ph{width:100%;height:100%;object-fit:cover;object-position:50% 12%}
   .result .pic img{display:block}
-  .result .info{flex:1;text-align:center}
-  .result h2{margin:0 0 4px;font-size:20px;letter-spacing:1px;font-weight:600;color:var(--muted)}
-  .result .who{font-size:28px;font-weight:700;color:var(--accent2);letter-spacing:1px;margin-bottom:10px}
-  .result .btns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
-  .statRow{display:flex;justify-content:center;gap:26px;margin:8px 0 14px;flex-wrap:wrap}
-  .statRow div{min-width:60px}
-  .statRow b{display:block;font-size:24px}
-  .statRow small{color:var(--muted);font-size:11px;letter-spacing:1px;text-transform:uppercase}
+  .result .info{flex:1;min-width:0}
+  .result .who{font-size:22px;font-weight:700;color:var(--accent2);letter-spacing:1px;line-height:1.1}
+  .result .sub{font-size:13px;color:var(--muted);margin-top:2px}
+  .result .sub b{color:var(--text)}
+  .result .btns{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+
+  /* ---------- board ---------- */
+  .boardWrap{position:relative;overflow:auto;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+  table{width:100%;table-layout:fixed;border-collapse:separate;border-spacing:6px}
+  th{font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:var(--muted);font-weight:600;
+    padding:2px 0 4px;position:sticky;top:0;background:#0f1630;z-index:2}
+  td{padding:0}
+  .cell{width:100%;height:var(--ch);border-radius:10px;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;text-align:center;padding:4px;overflow:hidden;
+    font-size:var(--cf);font-weight:600;line-height:1.18;border:1px solid rgba(255,255,255,.08);
+    animation:flip .42s ease both}
+  .g{background:var(--good)} .o{background:var(--warn)} .b{background:var(--bad)}
+  .heroCell{background:var(--panel2);padding:0;position:relative}
+  .heroCell img,.heroCell .ph{width:100%;height:100%;object-fit:cover;object-position:50% 14%}
+  .heroCell img{display:block}
+  .ph{display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;
+    background:linear-gradient(140deg,#3a2a7a,#1b2a5e);color:#cdd6ff}
+  .heroCell span{position:absolute;left:0;right:0;bottom:0;background:rgba(6,9,20,.84);
+    font-size:11px;padding:3px 2px;letter-spacing:.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .arrow{font-size:18px;line-height:1}
+  @keyframes flip{from{transform:rotateX(90deg);opacity:0}to{transform:rotateX(0);opacity:1}}
+  .empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
+    text-align:center;color:var(--muted);font-size:15px;padding:30px 10px;height:100%}
+  .empty .big{font-size:44px;opacity:.5}
+  .empty[hidden]{display:none}
 
   /* ---------- hero select ---------- */
-  .roster{min-width:0}
-  .rosterHead{width:100%;display:flex;align-items:center;gap:10px;
-    font-size:13px;letter-spacing:2px;text-transform:uppercase;padding:12px 16px;color:var(--muted)}
+  .rosterHead{display:flex;align-items:center;gap:12px;font-size:12px;letter-spacing:2px;
+    text-transform:uppercase;color:var(--muted);margin-bottom:10px;flex-wrap:wrap}
   .rosterHead b{color:var(--text)}
-  .rosterHead i{font-style:normal;margin-left:auto;transition:.2s}
-  .rosterHead.closed i{transform:rotate(-90deg)}
-  .group{margin-top:16px}
-  .group h3{margin:0 0 10px;font-size:13px;letter-spacing:2.5px;text-transform:uppercase;font-weight:700;
-    display:flex;align-items:center;gap:10px;color:var(--rc)}
-  .group h3::before{content:"";width:4px;height:16px;border-radius:2px;background:var(--rc)}
-  .group h3 span{color:var(--muted);font-weight:600}
-  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(86px,1fr));gap:9px}
-  .htile{display:flex;flex-direction:column;padding:0;border-radius:10px;overflow:hidden;
+  .tabs{display:flex;gap:6px;margin-left:auto;flex-wrap:wrap}
+  .tab{padding:6px 12px;font-size:12px;letter-spacing:1.2px;text-transform:uppercase;border-radius:999px;
+    display:flex;align-items:center;gap:7px;background:transparent}
+  .tab i{width:8px;height:8px;border-radius:50%;background:var(--rc,#fff);display:inline-block}
+  .tab.on{background:var(--panel2);border-color:var(--rc,var(--accent));color:#fff}
+  .tab[data-role="all"]{--rc:#cdd6ff}
+  #rosterBody{overflow:auto;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+  .grid{display:grid;grid-template-columns:repeat(var(--cols),minmax(0,1fr));gap:8px}
+  .htile{display:flex;flex-direction:column;padding:0;border-radius:9px;overflow:hidden;min-width:0;
     background:var(--panel2);border:1px solid var(--line);text-align:center;transition:.15s}
-  .htile .pic{aspect-ratio:4/5;width:100%;overflow:hidden;background:linear-gradient(160deg,#2b2466,#141c3d)}
-  .htile .pic img,.htile .pic .ph{width:100%;height:100%;object-fit:cover;object-position:50% 10%;transition:transform .2s}
+  .htile .pic{aspect-ratio:1/1.05;width:100%;overflow:hidden;background:linear-gradient(160deg,#2b2466,#141c3d)}
+  .htile .pic img,.htile .pic .ph{width:100%;height:100%;object-fit:cover;object-position:50% 8%;transition:transform .2s}
   .htile .pic img{display:block}
-  .htile .nm{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;line-height:1.15;
-    padding:6px 4px;min-height:34px;display:flex;align-items:center;justify-content:center;
-    background:rgba(6,9,20,.9);border-top:2px solid var(--rc)}
-  .htile:hover{transform:translateY(-3px);border-color:var(--rc);box-shadow:0 10px 24px rgba(0,0,0,.45)}
-  .htile:hover .pic img{transform:scale(1.06)}
-  .htile.used{filter:grayscale(1);opacity:.32}
+  .htile .nm{font-size:var(--nfs);font-weight:700;text-transform:uppercase;letter-spacing:.3px;line-height:1.12;
+    height:var(--nmh,30px);padding:0 3px;display:flex;align-items:center;justify-content:center;
+    background:rgba(6,9,20,.92);border-top:2px solid var(--rc);overflow:hidden}
+  .htile .nm span{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .htile:hover{transform:translateY(-2px);border-color:var(--rc);box-shadow:0 8px 20px rgba(0,0,0,.45)}
+  .htile:hover .pic img{transform:scale(1.07)}
+  .htile.used{filter:grayscale(1);opacity:.3}
   .htile.used .nm{text-decoration:line-through}
   .htile:disabled{cursor:default}
   .htile:disabled:hover{transform:none;box-shadow:none;border-color:var(--line)}
   .htile:disabled:hover .pic img{transform:none}
   .g-van{--rc:var(--van)} .g-due{--rc:var(--due)} .g-str{--rc:var(--str)}
+  .g-multi{--rc:#b48cff}
+  .g-multi .nm{border-top:0;box-shadow:inset 0 2px 0 0 transparent;
+    background:linear-gradient(90deg,var(--van),var(--due),var(--str)) top/100% 2px no-repeat, rgba(6,9,20,.92)}
+  .htile.off{display:none}
+  .fitted .htile .pic{aspect-ratio:auto;height:var(--pich)}
+  .noNames .htile .nm{display:none}
+  .noNames .htile .pic{border-bottom:3px solid var(--rc)}
 
-  footer{text-align:center;color:var(--muted);font-size:12px;margin-top:40px;opacity:.65;line-height:1.7}
-  .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:var(--accent);
-    padding:10px 18px;border-radius:999px;font-weight:600;font-size:14px;opacity:0;
-    pointer-events:none;transition:.25s;z-index:50}
+  footer{text-align:center;color:var(--muted);font-size:11px;opacity:.55}
+  .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--accent);
+    padding:10px 18px;border-radius:999px;font-weight:600;font-size:14px;opacity:0;pointer-events:none;transition:.25s;z-index:50}
   .toast.show{opacity:1}
   dialog{border:1px solid var(--line);background:var(--panel);color:var(--text);border-radius:14px;
     max-width:460px;padding:22px;font-family:inherit}
@@ -144,63 +152,78 @@
   dialog h3{margin:0 0 10px}
   dialog ul{padding-left:18px;line-height:1.7;font-size:14px}
   .key{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-1px;margin-right:4px}
+  .statRow{display:flex;justify-content:center;gap:26px;margin:8px 0 14px;flex-wrap:wrap}
+  .statRow div{min-width:60px;text-align:center}
+  .statRow b{display:block;font-size:24px}
+  .statRow small{color:var(--muted);font-size:11px;letter-spacing:1px;text-transform:uppercase}
 
-  @media(min-width:1200px){
-    :root{--cw:124px; --ch:104px; --cf:14px}
-    .layout{grid-template-columns:minmax(0,860px) minmax(0,1fr);align-items:start}
-    .roster{position:sticky;top:16px;max-height:calc(100vh - 32px);overflow-y:auto;
-      padding-right:6px;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
-    .rosterHead{position:sticky;top:0;z-index:5;background:var(--panel)}
+  /* ---------- one-screen mode: nothing scrolls the page ---------- */
+  @media (min-width:1000px) and (min-height:560px){
+    body{overflow:hidden}
+    .app{height:100vh}
+    .layout{flex:1;min-height:0;grid-template-columns:minmax(520px,42fr) minmax(0,58fr);grid-template-rows:minmax(0,1fr)}
+    .panel{min-height:0}
+    .boardWrap{flex:1;min-height:0}
+    #rosterBody{flex:1;min-height:0}
   }
-  @media(min-width:1600px){ :root{--cw:132px; --ch:110px} }
-  @media(max-width:640px){
-    :root{--cw:74px; --ch:68px; --cf:11px}
-    table{border-spacing:4px}
-    .grid{grid-template-columns:repeat(auto-fill,minmax(78px,1fr));gap:8px}
-    .result{flex-direction:column}
+  /* small screens: normal scrolling page */
+  @media (max-width:999px), (max-height:559px){
+    .grid{grid-template-columns:repeat(auto-fill,minmax(80px,1fr))}
+    .brand{flex-direction:column;align-items:flex-start;gap:4px}
+  }
+  @media (max-width:640px){
+    .app{padding:10px 12px}
+    h1{font-size:32px}
+    table{border-spacing:3px}
+    :root{--ch:66px;--cf:11px}
+    .result{flex-wrap:wrap}
   }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <header>
-    <h1>RIVALS</h1>
-    <div class="tag">Guess the hero</div>
+<div class="app">
+  <header class="top">
+    <div class="brand"><h1>RIVALS</h1><span class="tag">Guess the hero</span></div>
+    <div class="bar">
+      <button id="btnHow">How to play</button>
+      <button id="btnStats">Stats</button>
+      <button id="btnNew" class="playmore">New hero &#9654;</button>
+    </div>
   </header>
 
-  <div class="bar">
-    <button id="btnHow">How to play</button>
-    <button id="btnStats">Stats</button>
-    <button id="btnNew" class="playmore">New hero &#9654;</button>
-  </div>
-
   <main class="layout">
-    <section class="play">
-      <div class="prompt" id="prompt"></div>
+    <section class="panel play">
       <div class="inputRow">
         <input id="guess" autocomplete="off" spellcheck="false" placeholder="Type a hero name...">
         <button class="primary" id="btnGo">Guess</button>
         <div class="ac" id="ac" hidden></div>
       </div>
+      <div class="prompt" id="prompt"></div>
       <div id="result"></div>
-
-      <div class="tableWrap">
+      <div class="boardWrap" id="boardWrap">
         <table id="board" hidden>
+          <colgroup><col style="width:17%"><col><col><col style="width:19%"><col><col></colgroup>
           <thead><tr><th>Hero</th><th>Gender</th><th>Role</th><th>Team</th><th>Origin</th><th>Year</th></tr></thead>
           <tbody id="rows"></tbody>
         </table>
+        <div class="empty" id="empty"><div class="big">?</div>Type a name or pick a hero on the right<br>to make your first guess.</div>
       </div>
-      <div class="swipe" id="swipe">swipe to see every column &rarr;</div>
-      <div class="empty" id="empty">Type a name or pick a hero from the list to make your first guess.</div>
     </section>
 
-    <aside class="roster">
-      <button class="rosterHead" id="rosterToggle"><b>All heroes</b> <span id="rosterCount"></span> <i>&#9662;</i></button>
+    <aside class="panel roster">
+      <div class="rosterHead"><b>Heroes</b><span id="rosterCount"></span>
+        <div class="tabs" id="tabs">
+          <button class="tab on" data-role="all">All</button>
+          <button class="tab g-van" data-role="Vanguard"><i></i>Vanguard</button>
+          <button class="tab g-due" data-role="Duelist"><i></i>Duelist</button>
+          <button class="tab g-str" data-role="Strategist"><i></i>Strategist</button>
+        </div>
+      </div>
       <div id="rosterBody"></div>
     </aside>
   </main>
 
-  <footer>Unofficial fan project. Not affiliated with Marvel or NetEase. Hero art is linked from the Marvel Rivals community wiki.</footer>
+  <footer>Unofficial fan project &middot; not affiliated with Marvel or NetEase &middot; hero art linked from the Marvel Rivals community wiki</footer>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -214,7 +237,7 @@
     <li><span class="key" style="background:var(--bad)"></span><b>Red</b> — no match.</li>
     <li><b>↑ / ↓</b> on the year — the answer came out later / earlier.</li>
   </ul>
-  <p style="font-size:14px">Type a name or click a hero in the list. Unlimited guesses, unlimited rounds — hit <b>New hero</b> any time.</p>
+  <p style="font-size:14px">Type a name or click a hero on the right. Unlimited guesses, unlimited rounds — hit <b>New hero</b> any time.</p>
   <button class="primary" onclick="dlgHow.close()">Got it</button>
 </dialog>
 
@@ -370,33 +393,38 @@ function recordWin(){
 
 /* ---------- hero select ---------- */
 const ROLES=[['Vanguard','van'],['Duelist','due'],['Strategist','str']];
-let rosterBuilt=false;
+const ROLE_KEY=Object.fromEntries(ROLES);
+let rosterBuilt=false, roleFilter='all';
+/* one grid like the in-game hero select: ordered by role, then name; name bar coloured by role */
 function buildRoster(){
   const body=$('rosterBody'); body.innerHTML='';
-  ROLES.forEach(([role,key])=>{
-    const list=HEROES.filter(h=>h.roles.includes(role)).sort((a,b)=>a.name.localeCompare(b.name));
-    const g=document.createElement('div'); g.className='group g-'+key;
-    const h3=document.createElement('h3');
-    h3.appendChild(document.createTextNode(role));
-    const n=document.createElement('span'); n.textContent=list.length; h3.appendChild(n);
-    g.appendChild(h3);
-    const grid=document.createElement('div'); grid.className='grid';
-    list.forEach(hero=>{
-      const t=document.createElement('button');
-      t.className='htile'; t.dataset.hero=hero.name; t.title='Guess '+hero.name;
-      const pic=document.createElement('div'); pic.className='pic';
-      pic.appendChild(portrait(hero,'',220,30000));
-      const nm=document.createElement('div'); nm.className='nm'; nm.textContent=hero.name;
-      t.appendChild(pic); t.appendChild(nm);
-      t.onclick=()=>submitGuess(hero.name);
-      grid.appendChild(t);
-    });
-    g.appendChild(grid);
-    body.appendChild(g);
+  const order=r=>ROLES.findIndex(x=>x[0]===r);
+  const list=HEROES.slice().sort((a,b)=> order(a.roles[0])-order(b.roles[0]) || a.name.localeCompare(b.name));
+  const grid=document.createElement('div'); grid.className='grid';
+  list.forEach(hero=>{
+    const t=document.createElement('button');
+    t.className='htile '+(hero.roles.length>1 ? 'g-multi' : 'g-'+ROLE_KEY[hero.roles[0]]);
+    t.dataset.hero=hero.name; t.dataset.roles=hero.roles.join(',');
+    t.title=hero.name+' \u2014 '+hero.roles.join(' / ');
+    const pic=document.createElement('div'); pic.className='pic';
+    pic.appendChild(portrait(hero,'',220,30000));
+    const nm=document.createElement('div'); nm.className='nm';
+    const sp=document.createElement('span'); sp.textContent=hero.name; nm.appendChild(sp);
+    t.appendChild(pic); t.appendChild(nm);
+    t.onclick=()=>submitGuess(hero.name);
+    grid.appendChild(t);
   });
-  $('rosterCount').textContent=HEROES.length+' heroes';
+  body.appendChild(grid);
+  $('rosterCount').textContent=HEROES.length;
   rosterBuilt=true;
 }
+function applyFilter(){
+  document.querySelectorAll('.htile').forEach(t=>{
+    t.classList.toggle('off', roleFilter!=='all' && !t.dataset.roles.split(',').includes(roleFilter));
+  });
+  document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('on', b.dataset.role===roleFilter));
+}
+document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{ roleFilter=b.dataset.role; applyFilter(); });
 function syncRoster(){
   if(!rosterBuilt) buildRoster();
   document.querySelectorAll('.htile').forEach(t=>{
@@ -405,12 +433,47 @@ function syncRoster(){
     t.disabled = used || done;
   });
 }
-$('rosterToggle').onclick=()=>{
-  const body=$('rosterBody'), btn=$('rosterToggle');
-  const hidden = body.hasAttribute('hidden');
-  if(hidden){ body.removeAttribute('hidden'); btn.classList.remove('closed'); }
-  else { body.setAttribute('hidden',''); btn.classList.add('closed'); }
-};
+
+/* ---------- fit everything into one screen ---------- */
+const FIT = matchMedia('(min-width:1000px) and (min-height:560px)');
+function fitRoster(){
+  const body=$('rosterBody'), root=body.style;
+  if(!FIT.matches){ ['--cols','--nfs','--nmh','--pich'].forEach(v=>root.removeProperty(v)); body.classList.remove('noNames','fitted'); return; }
+  const W=body.clientWidth, H=body.clientHeight, gap=8, n=HEROES.length;
+  let pick=null;
+  for(let c=4;c<=20;c++){
+    const tw=(W-(c-1)*gap)/c;
+    const nmh = tw>=86 ? 30 : tw>=62 ? 27 : tw>=46 ? 24 : 0;   /* tiny cards: names move to the tooltip */
+    const th = tw*1.05 + nmh + 2;
+    const rows=Math.ceil(n/c);
+    pick={c,tw,nmh};
+    if(rows*th + (rows-1)*gap <= H-2) break;
+  }
+  /* use any spare height: stretch the portraits (up to a tall card shape) so the grid fills the panel */
+  const rows=Math.ceil(n/pick.c);
+  const thAvail=(H-2-(rows-1)*gap)/rows;
+  const picH=Math.max(pick.tw*1.05, Math.min(thAvail-pick.nmh-2, pick.tw*1.5));
+  root.setProperty('--pich', Math.floor(picH)+'px');
+  body.classList.add('fitted');
+  root.setProperty('--cols', pick.c);
+  root.setProperty('--nmh', pick.nmh+'px');
+  body.classList.toggle('noNames', pick.nmh===0);
+  root.setProperty('--nfs', (pick.tw>=86?11:pick.tw>=62?10:9)+'px');
+}
+function fitBoard(){
+  const wrap=$('boardWrap'), board=$('board');
+  if(!FIT.matches){ board.style.removeProperty('--ch'); board.style.removeProperty('--cf'); return; }
+  const n=guesses.length; if(!n) return;
+  /* border-spacing sits above the header, between every row and below the last: n+2 gaps */
+  const head=board.tHead.offsetHeight||22, spacing=6;
+  const avail=wrap.clientHeight - head - spacing*(n+2) - 2;
+  const ch=Math.max(48, Math.min(104, Math.floor(avail/n)));
+  board.style.setProperty('--ch', ch+'px');
+  board.style.setProperty('--cf', (ch>=84?14:ch>=66?12:11)+'px');
+}
+function fitAll(){ fitRoster(); fitBoard(); }
+let fitT; addEventListener('resize', ()=>{ clearTimeout(fitT); fitT=setTimeout(fitAll, 60); });
+FIT.addEventListener && FIT.addEventListener('change', fitAll);
 
 /* ---------- rendering ---------- */
 function render(){
@@ -438,18 +501,16 @@ function render(){
 
   $('prompt').innerHTML = done
     ? 'Solved! Hit <b>Next hero</b> for another round.'
-    : 'Guess the hero &middot; unlimited guesses &middot; guesses this round: <b>'+guesses.length+'</b>';
+    : 'Unlimited guesses &middot; guesses this round: <b>'+guesses.length+'</b>';
 
   $('guess').disabled = done;
   $('btnGo').disabled = done;
   $('result').innerHTML='';
   if(done) showResult();
 
-  const wrap=document.querySelector('.tableWrap');
-  const over = guesses.length>0 && wrap.scrollWidth > wrap.clientWidth + 4;
-  $('swipe').classList.toggle('on', over);
-
   syncRoster();
+  fitAll();
+  $('boardWrap').scrollTop = 0;
 }
 
 function emojiGrid(){
@@ -468,18 +529,15 @@ function showResult(){
   const box=document.createElement('div'); box.className='result';
   const pic=document.createElement('div'); pic.className='pic'; pic.appendChild(portrait(answer));
   const info=document.createElement('div'); info.className='info';
-  info.innerHTML='<h2>Solved in '+guesses.length+(guesses.length===1?' guess':' guesses')+'</h2>'+
-    '<div class="who"></div>'+
-    '<div class="statRow"><div><b>'+s.played+'</b><small>Solved</small></div>'+
-    '<div><b>'+avg+'</b><small>Avg guesses</small></div>'+
-    '<div><b>'+(s.best===null?'–':s.best)+'</b><small>Best</small></div></div>';
-  info.querySelector('.who').textContent = answer.name.toUpperCase();
+  const who=document.createElement('div'); who.className='who'; who.textContent=answer.name.toUpperCase();
+  const sub=document.createElement('div'); sub.className='sub';
+  sub.innerHTML='Solved in <b>'+guesses.length+'</b> &middot; '+s.played+' solved &middot; avg <b>'+avg+'</b> &middot; best <b>'+(s.best===null?'–':s.best)+'</b>';
+  info.appendChild(who); info.appendChild(sub);
   const btns=document.createElement('div'); btns.className='btns';
   const nxt=document.createElement('button'); nxt.className='primary'; nxt.textContent='Next hero ▶'; nxt.onclick=newRound;
-  const share=document.createElement('button'); share.textContent='Share result'; share.onclick=doShare;
+  const share=document.createElement('button'); share.textContent='Share'; share.onclick=doShare;
   btns.appendChild(nxt); btns.appendChild(share);
-  info.appendChild(btns);
-  box.appendChild(pic); box.appendChild(info);
+  box.appendChild(pic); box.appendChild(info); box.appendChild(btns);
   $('result').appendChild(box);
 }
 
@@ -507,7 +565,7 @@ function submitGuess(name){
   persist();
   $('guess').value=''; hideAc();
   render();
-  if(done){ toast('Nailed it'); window.scrollTo({top:0,behavior:'smooth'}); }
+  if(done) toast('Nailed it');
 }
 
 /* ---------- autocomplete ---------- */
@@ -569,6 +627,7 @@ $('btnStats').onclick=()=>{
   if(h){ answer=h; guesses=(r.g||[]).filter(n=>HEROES.some(x=>x.name===n)); done=!!r.done; render(); }
   else newRound();
   $('guess').focus();
+  if(document.fonts && document.fonts.ready) document.fonts.ready.then(fitAll);
 })();
 </script>
 </body>
